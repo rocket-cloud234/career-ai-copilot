@@ -24,3 +24,157 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ================= MAIN SIDEBAR SCROLLBAR ================= */
+
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #27272a transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 9999px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+
+@keyframes profileBackdropIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes profileBackdropOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes profilePopupIn {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.005);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes profilePopupOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+.animate-profile-backdrop-in {
+  animation: profileBackdropIn 220ms ease-out forwards;
+}
+
+.animate-profile-backdrop-out {
+  animation: profileBackdropOut 220ms ease-in forwards;
+}
+
+.animate-profile-popup-in {
+  animation: profilePopupIn 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-profile-popup-out {
+  animation: profilePopupOut 220ms ease-in forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 220ms ease-out forwards;
+}
+
+.animate-fade-out {
+  animation: fadeOut 220ms ease-out forwards;
+}
+
+.animate-modal-in {
+  animation: modalIn 220ms ease-out forwards;
+}
+
+.animate-modal-out {
+  animation: modalOut 220ms ease-out forwards;
+}
