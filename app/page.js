@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 
 import AboutYouPopup from "./components/AboutYou";
+import ProfilePopup from "./components/ProfilePopup";
 import SkillGapPopup from "./components/SkillGapPopup";
 import RoadmapPopup from "./components/RoadmapPopup";
 import RoadmapSidebar from "./components/RoadmapSidebar";
@@ -60,17 +61,17 @@ const [aboutYou, setAboutYou] = useState({
   age: 22,
 
   interests:
-    "Web development, UI design, building websites, and learning new technologies",
+    "",
 
   currentSkills:
-    "Basic HTML, CSS, beginner JavaScript, and basic Git",
+    "",
 
   background:
-    "BTech Computer Science student with a strong interest in web development. I have built a few small websites and want to improve my practical development skills.",
+    "",
 
   targetCareer: "",
 
-  targetCareerId: "jqul",
+  targetCareerId: "targetCareerID",
 
   selectedRoadmap: "",
 });
@@ -94,6 +95,7 @@ const [selectedRoadmapId, setSelectedRoadmapId] = useState(
   // ==================================================
 
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+   const [showAboutYouPopup, setShowAboutYOUPopup] = useState(false);
 
 
 
@@ -299,6 +301,10 @@ const [selectedRoadmapId, setSelectedRoadmapId] = useState(
     setShowProfilePopup(true);
   };
 
+  const openAboutYouPopup = () => {
+    setShowAboutYOUPopup(true);
+  };
+
   
  
 
@@ -418,6 +424,126 @@ const [selectedRoadmapId, setSelectedRoadmapId] = useState(
       }, 100);
     }
   };
+
+
+const newReChat = () => {
+  const careerPathMessage = {
+    id: crypto.randomUUID(),
+    role: "user",
+    text: "Find my career path",
+  };
+
+  setMessages([
+    initialMessage,
+    careerPathMessage,
+  ]);
+
+  setMessage("");
+
+  setTimeout(() => {
+    inputRef.current?.focus();
+  }, 100);
+};
+
+  const handleNewSaveProfile = async (profileData) => {
+  // Save the profile first
+  setAboutYou({
+    name: profileData.name || "",
+    age: profileData.age || "",
+    interests: profileData.interests || "",
+    currentSkills: profileData.currentSkills || "",
+    background: profileData.background || "",
+    targetCareer: profileData.targetCareer || "",
+    targetCareerId: profileData.targetCareerId || "",
+    selectedRoadmap: profileData.selectedRoadmap || "",
+  });
+
+  setTargetCareer(profileData.targetCareer || "");
+
+  // Close popup
+  setShowProfilePopup(false);
+  newReChat();
+
+  // Regenerate career path using the NEW profile data
+  if (
+    profileData.interests?.trim() &&
+    profileData.currentSkills?.trim()
+  ) {
+    await regenerateCareerPath(profileData);
+  }
+};
+
+
+
+const regenerateCareerPath = async (profileData) => {
+  if (isLoading || isAnalyzingResume) return;
+
+  setIsLoading(true);
+
+  try {
+    const response = await fetch("/api/career-path", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: "Find my career path",
+
+        history: messages.map((msg) => ({
+          role: msg.role,
+          text: msg.text,
+        })),
+
+        // IMPORTANT:
+        // Use the newly saved profile
+        aboutYou: profileData,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+          "Something went wrong while regenerating your career path."
+      );
+    }
+
+    const aiResponse = handleAIResponse(
+      data.response || "I couldn't find a suitable career path."
+    );
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        role: "ai",
+        type: "career-path",
+        text: aiResponse,
+      },
+    ]);
+  } catch (error) {
+    console.error("Regenerate career path error:", error);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        role: "ai",
+        text:
+          error?.message ||
+          "Sorry, I couldn't regenerate your career path.",
+      },
+    ]);
+  } finally {
+    setIsLoading(false);
+
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  }
+};
+  
 
   // ==================================================
   // BUILD LEARNING ROADMAP
@@ -1197,8 +1323,8 @@ Please identify:
           onRoadmapSelect={handleRoadmapSelect}
           onNewChat={newChat}
           profile={aboutYou}
-          onOpenProfile={openProfilePopup}
-          setShowProfilePopup={setShowProfilePopup}
+          onOpenProfile={openAboutYouPopup}
+      setShowProfilePopup={setShowAboutYOUPopup}
         />
 
         {/* ==================================================
@@ -1282,12 +1408,22 @@ Please identify:
           PROFILE POPUP
       ================================================== */}
       <AboutYouPopup
+        show={showAboutYouPopup}
+        profile={aboutYou}
+        setProfile={setAboutYou}
+        setShowProfilePopup={setShowAboutYOUPopup}
+        onSave={handleSaveProfile}
+      />
+
+       <ProfilePopup
         show={showProfilePopup}
         profile={aboutYou}
         setProfile={setAboutYou}
+        onNewChat={newChat}
         setShowProfilePopup={setShowProfilePopup}
-        onSave={handleSaveProfile}
+        onSave={handleNewSaveProfile}
       />
+
     </div>
   );
 }

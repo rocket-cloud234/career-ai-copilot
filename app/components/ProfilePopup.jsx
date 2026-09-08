@@ -5,10 +5,24 @@ export default function ProfilePopup({
   isClosing,
   profile,
   setProfile,
-  onClose,
-  onSubmit,
+  onNewChat,
+  setShowProfilePopup,
+  onSave,
 }) {
   if (!show) return null;
+
+  const handleSave = () => {
+    // Interests and Current Skills are required
+    if (!profile.interests?.trim() || !profile.currentSkills?.trim()) {
+      return;
+    }
+
+    onSave(profile);
+    setShowProfilePopup(false);
+  };
+
+  const isSaveDisabled =
+    !profile.interests?.trim() || !profile.currentSkills?.trim();
 
   return (
     <div
@@ -28,7 +42,12 @@ export default function ProfilePopup({
         {/* HEADER */}
         <div className="mb-4">
           <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-[#18181b]">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
               <path
                 d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z"
                 fill="white"
@@ -45,51 +64,10 @@ export default function ProfilePopup({
           </p>
         </div>
 
-        {/* NAME + AGE */}
-        <div className="mb-3 flex gap-2">
-          <div className="flex-1">
-            <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">
-              Name
-            </label>
-
-            <input
-              type="text"
-              value={profile.name || ""}
-              onChange={(e) =>
-                setProfile((prev) => ({
-                  ...prev,
-                  name: e.target.value,
-                }))
-              }
-              placeholder="Your name"
-              className="w-full rounded-lg border border-zinc-800 bg-[#0c0c0f] px-3 py-2 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-zinc-600"
-            />
-          </div>
-
-          <div className="w-20">
-            <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">
-              Age
-            </label>
-
-            <input
-              type="number"
-              value={profile.age || ""}
-              onChange={(e) =>
-                setProfile((prev) => ({
-                  ...prev,
-                  age: e.target.value,
-                }))
-              }
-              placeholder="Age"
-              className="w-full rounded-lg border border-zinc-800 bg-[#0c0c0f] px-3 py-2 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-zinc-600"
-            />
-          </div>
-        </div>
-
-        {/* INTERESTS */}
+        {/* INTERESTS - REQUIRED */}
         <div className="mb-3">
           <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">
-            Interests
+            Interests <span className="text-red-400">*</span>
           </label>
 
           <textarea
@@ -106,10 +84,10 @@ export default function ProfilePopup({
           />
         </div>
 
-        {/* CURRENT SKILLS */}
+        {/* CURRENT SKILLS - REQUIRED */}
         <div className="mb-3">
           <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">
-            Current Skills
+            Current Skills <span className="text-red-400">*</span>
           </label>
 
           <textarea
@@ -126,10 +104,11 @@ export default function ProfilePopup({
           />
         </div>
 
-        {/* BACKGROUND */}
+        {/* BACKGROUND - OPTIONAL */}
         <div className="mb-3">
           <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">
-            Background
+            Background{" "}
+            <span className="text-zinc-600">(Optional)</span>
           </label>
 
           <textarea
@@ -146,23 +125,28 @@ export default function ProfilePopup({
           />
         </div>
 
+        {/* REQUIRED FIELD NOTE */}
+        <p className="mb-3 text-[10px] text-zinc-600">
+          <span className="text-red-400">*</span> Required fields
+        </p>
+
         {/* BUTTONS */}
         <div className="flex gap-2">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
-          >
-            Skip
-          </button>
+         <button
+  type="button"
+  onClick={() => {
+    setShowProfilePopup(false);
+    onNewChat();
+  }}
+  className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+>
+  Skip
+</button>
 
           <button
-            onClick={onSubmit}
-            disabled={
-              !profile.interests?.trim() &&
-              !profile.currentSkills?.trim() &&
-              !profile.background?.trim() &&
-              !profile.targetCareer?.trim()
-            }
+            type="button"
+            onClick={handleSave}
+            disabled={isSaveDisabled}
             className="flex-1 rounded-lg bg-white px-3 py-2 text-xs font-medium text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-30"
           >
             Save →

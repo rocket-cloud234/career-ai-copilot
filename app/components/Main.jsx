@@ -225,7 +225,7 @@ export default function Main({
           CHAT
       ===================================================== */}
 
-     <div className="sidebar-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-8 md:px-8">
+      <div className="sidebar-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-8 md:px-8">
         <div className="mx-auto max-w-3xl">
           <div className="space-y-8">
             {/* =================================================
@@ -238,8 +238,7 @@ export default function Main({
               // =================================================
 
               const careerPathInput =
-                msg.role === "ai" &&
-                isCareerPathInput(msg.text);
+                msg.role === "ai" && isCareerPathInput(msg.text);
 
               // Remove marker from visible text
               const visibleText = cleanMessageText(msg.text);
@@ -327,7 +326,7 @@ export default function Main({
                       </div>
                     ) : msg.role === "ai" ? (
                       /* =================================================
-                          AI MARKDOWN
+                         AI MARKDOWN
                       ================================================= */
 
                       <div>
@@ -390,9 +389,7 @@ export default function Main({
                               // =================================================
 
                               li: ({ children }) => (
-                                <li className="pl-1">
-                                  {children}
-                                </li>
+                                <li className="pl-1">{children}</li>
                               ),
 
                               // =================================================
@@ -483,167 +480,158 @@ export default function Main({
                             CAREER PATH SELECTION
                         ================================================= */}
 
-                        {careerPathInput &&
-                          !careerPathSubmitted && (
-                            <div className="mt-5 space-y-3">
-                              <p className="text-xs font-medium text-zinc-500">
-                                Choose the career path that interests you
-                                most:
-                              </p>
+                        {careerPathInput && !careerPathSubmitted && (
+                          <div className="mt-5 space-y-3">
+                            <p className="text-xs font-medium text-zinc-500">
+                              Choose the career path that interests you most:
+                            </p>
 
-                              {/* =================================================
-                                  PREPROCESSING LOADING
-                              ================================================= */}
+                            {/* =================================================
+                                PREPROCESSING LOADING
+                            ================================================= */}
 
-                              {isLoadingCareerPaths && (
-                                <div className="rounded-2xl border border-zinc-800 bg-[#111114] p-4">
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-1">
-                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:-0.3s]" />
+                            {isLoadingCareerPaths && (
+                              <div className="rounded-2xl border border-zinc-800 bg-[#111114] p-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1">
+                                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:-0.3s]" />
 
-                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:-0.15s]" />
+                                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600 [animation-delay:-0.15s]" />
 
-                                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600" />
-                                    </div>
-
-                                    <span className="text-xs text-zinc-500">
-                                      Preparing career paths...
-                                    </span>
+                                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-600" />
                                   </div>
+
+                                  <span className="text-xs text-zinc-500">
+                                    Preparing career paths...
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* =================================================
+                                CAREER OPTIONS
+                            ================================================= */}
+
+                            {!isLoadingCareerPaths &&
+                              careerPathOptions.length > 0 && (
+                                <div className="grid grid-cols-1 gap-2.5">
+                                  {careerPathOptions.map((option) => {
+                                    const selected =
+                                      selectedCareerPath === option.id;
+
+                                    return (
+                                      <button
+                                        key={option.id}
+                                        type="button"
+                                        onClick={() =>
+                                          selectCareerPath(option.id)
+                                        }
+                                        disabled={isLoading}
+                                        className={`group flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition-all ${
+                                          selected
+                                            ? "border-white/40 bg-white/[0.07]"
+                                            : "border-zinc-800 bg-[#111114] hover:border-zinc-700 hover:bg-[#151518]"
+                                        } ${
+                                          isLoading
+                                            ? "cursor-not-allowed opacity-50"
+                                            : ""
+                                        }`}
+                                      >
+                                        {/* RADIO */}
+
+                                        <div
+                                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all ${
+                                            selected
+                                              ? "border-white"
+                                              : "border-zinc-700 group-hover:border-zinc-500"
+                                          }`}
+                                        >
+                                          {selected && (
+                                            <div className="h-2.5 w-2.5 rounded-full bg-white" />
+                                          )}
+                                        </div>
+
+                                        {/* TEXT */}
+
+                                        <div className="min-w-0">
+                                          <p
+                                            className={`text-sm font-medium transition ${
+                                              selected
+                                                ? "text-white"
+                                                : "text-zinc-200"
+                                            }`}
+                                          >
+                                            {option.title}
+                                          </p>
+
+                                          <p className="mt-1 text-xs leading-5 text-zinc-500">
+                                            {option.description}
+                                          </p>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               )}
 
-                              {/* =================================================
-                                  CAREER OPTIONS
-                              ================================================= */}
+                            {/* =================================================
+                                SET TARGET CAREER
+                            ================================================= */}
 
-                              {!isLoadingCareerPaths &&
-                                careerPathOptions.length > 0 && (
-                                  <div className="grid grid-cols-1 gap-2.5">
-                                    {careerPathOptions.map((option) => {
-                                      const selected =
-                                        selectedCareerPath === option.id;
-
-                                      return (
-                                        <button
-                                          key={option.id}
-                                          type="button"
-                                          onClick={() =>
-                                            selectCareerPath(option.id)
-                                          }
-                                          disabled={isLoading}
-                                          className={`group flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition-all ${
-                                            selected
-                                              ? "border-white/40 bg-white/[0.07]"
-                                              : "border-zinc-800 bg-[#111114] hover:border-zinc-700 hover:bg-[#151518]"
-                                          } ${
-                                            isLoading
-                                              ? "cursor-not-allowed opacity-50"
-                                              : ""
-                                          }`}
-                                        >
-                                          {/* RADIO */}
-
-                                          <div
-                                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all ${
-                                              selected
-                                                ? "border-white"
-                                                : "border-zinc-700 group-hover:border-zinc-500"
-                                            }`}
-                                          >
-                                            {selected && (
-                                              <div className="h-2.5 w-2.5 rounded-full bg-white" />
-                                            )}
-                                          </div>
-
-                                          {/* TEXT */}
-
-                                          <div className="min-w-0">
-                                            <p
-                                              className={`text-sm font-medium transition ${
-                                                selected
-                                                  ? "text-white"
-                                                  : "text-zinc-200"
-                                              }`}
-                                            >
-                                              {option.title}
-                                            </p>
-
-                                            <p className="mt-1 text-xs leading-5 text-zinc-500">
-                                              {option.description}
-                                            </p>
-                                          </div>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-
-                              {/* =================================================
-                                  SET TARGET CAREER
-                              ================================================= */}
-
-                              {careerPathOptions.length > 0 &&
-                                !isLoadingCareerPaths && (
-                                  <button
-                                    type="button"
-                                    onClick={submitCareerPath}
-                                    disabled={
-                                      !selectedCareerPath ||
-                                      isLoading
-                                    }
-                                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-medium text-black transition-all hover:bg-zinc-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-25"
-                                  >
-                                    <span>Set Target Career</span>
-
-                                    <span>→</span>
-                                  </button>
-                                )}
-                            </div>
-                          )}
+                            {careerPathOptions.length > 0 &&
+                              !isLoadingCareerPaths && (
+                                <button
+                                  type="button"
+                                  onClick={submitCareerPath}
+                                  disabled={!selectedCareerPath || isLoading}
+                                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-medium text-black transition-all hover:bg-zinc-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-25"
+                                >
+                                  <span>Set Target Career</span>
+                                  <span>→</span>
+                                </button>
+                              )}
+                          </div>
+                        )}
 
                         {/* =================================================
                             GENERATE LEARNING ROADMAP
                         ================================================= */}
 
-                        {careerPathInput &&
-                          careerPathSubmitted && (
-                            <div className="mt-5">
-                              <button
-                                type="button"
-                                onClick={buildLearningRoadmap}
-                                disabled={isLoading}
-                                className="group flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-medium text-black transition-all hover:bg-zinc-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-30"
+                        {careerPathInput && careerPathSubmitted && (
+                          <div className="mt-5">
+                            <button
+                              type="button"
+                              onClick={buildLearningRoadmap}
+                              disabled={isLoading}
+                              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-medium text-black transition-all hover:bg-zinc-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-30"
+                            >
+                              <svg
+                                width="15"
+                                height="15"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
                               >
-                                <svg
-                                  width="15"
-                                  height="15"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="1.8"
-                                >
-                                  <path
-                                    d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"
-                                    strokeLinecap="round"
-                                  />
+                                <path
+                                  d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"
+                                  strokeLinecap="round"
+                                />
 
-                                  <path
-                                    d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
+                                <path
+                                  d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
 
-                                <span>
-                                  Generate Learning Roadmap
-                                </span>
+                              <span>Generate Learning Roadmap</span>
 
-                                <span className="transition-transform duration-200 group-hover:translate-x-0.5">
-                                  →
-                                </span>
-                              </button>
-                            </div>
-                          )}
+                              <span className="transition-transform duration-200 group-hover:translate-x-0.5">
+                                →
+                              </span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       visibleText
@@ -676,8 +664,8 @@ export default function Main({
                 <div className="pt-1">
                   {isAnalyzingResume && (
                     <p className="mb-3 text-sm text-zinc-400">
-                      Analyzing your resume and comparing it with the
-                      target role...
+                      Analyzing your resume and comparing it with the target
+                      role...
                     </p>
                   )}
 
@@ -718,13 +706,9 @@ export default function Main({
                         item.title === "Build a learning roadmap"
                       ) {
                         buildLearningRoadmap();
-                      } else if (
-                        item.title === "Find my career path"
-                      ) {
+                      } else if (item.title === "Find my career path") {
                         findCareerPath();
-                      } else if (
-                        item.title === "Start a mock interview"
-                      ) {
+                      } else if (item.title === "Start a mock interview") {
                         startMockInterview();
                       } else {
                         sendMessage(item.title);
@@ -770,9 +754,9 @@ export default function Main({
         </div>
       </div>
 
-      {/* =====================================================
+      {/* =========================================================
           INPUT SECTION
-      ===================================================== */}
+      ========================================================= */}
 
       <div className="shrink-0 border-t border-zinc-800/70 bg-[#0b0b0d] px-5 py-4 md:px-8">
         <div className="mx-auto max-w-3xl">
@@ -836,10 +820,7 @@ export default function Main({
               <button
                 type="button"
                 onClick={analyzeResume}
-                disabled={
-                  !targetRole.trim() ||
-                  isAnalyzingResume
-                }
+                disabled={!targetRole.trim() || isAnalyzingResume}
                 className="mt-3 w-full rounded-xl bg-white px-4 py-3 text-sm font-medium text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 {isAnalyzingResume
@@ -860,10 +841,7 @@ export default function Main({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={
-                  isLoading ||
-                  isAnalyzingResume
-                }
+                disabled={isLoading || isAnalyzingResume}
                 aria-label="Upload resume"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition hover:bg-zinc-800 hover:text-white disabled:opacity-30"
               >
@@ -892,10 +870,7 @@ export default function Main({
             <input
               ref={inputRef}
               value={message}
-              disabled={
-                isLoading ||
-                isAnalyzingResume
-              }
+              disabled={isLoading || isAnalyzingResume}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -913,9 +888,7 @@ export default function Main({
               type="button"
               onClick={() => sendMessage()}
               disabled={
-                !message.trim() ||
-                isLoading ||
-                isAnalyzingResume
+                !message.trim() || isLoading || isAnalyzingResume
               }
               aria-label="Send message"
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-20"
@@ -947,3 +920,4 @@ export default function Main({
     </main>
   );
 }
+
