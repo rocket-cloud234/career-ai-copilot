@@ -10,9 +10,6 @@ import MainSidebar from "./components/MainSidebar";
 import Main from "./components/Main";
 import initialRoadmapData from "../data/roadmaps.json";
 
-const handleNewChat = () => {
-  console.log("New chat");
-};
 
 const initialMessage = {
   id: "welcome",
@@ -956,54 +953,46 @@ const buildLearningRoadmap = async () => {
   // NEW CHAT
   // ==================================================
 
-  const newChat = () => {
-    setMessages([initialMessage]);
-    setMessage("");
+const newChat = () => {
+  setMessages([initialMessage]);
+  setMessage("");
 
-    setResume(null);
-    setTargetRole("");
+  setResume(null);
+  setTargetRole("");
 
-    setProfile({
-      interests: "",
-      currentSkills: "",
-      background: "",
-    });
+  setSkillGapData({
+    targetRole: "",
+    currentSkills: "",
+    background: "",
+  });
 
-    setSkillGapData({
-      targetRole: "",
-      currentSkills: "",
-      background: "",
-    });
+  setSkillGapResume(null);
 
-    setSkillGapResume(null);
+  setRoadmapText("");
+  setIsMockInterview(false);
 
-    setRoadmapText("");
-    setIsMockInterview(false);
+  setShowProfilePopup(false);
+  setShowSkillGapPopup(false);
+  setShowRoadmapPopup(false);
 
-    setShowProfilePopup(false);
-    setShowSkillGapPopup(false);
-    setShowRoadmapPopup(false);
+  setIsSkillGapPopupClosing(false);
+  setIsRoadmapPopupClosing(false);
 
-    setIsProfilePopupClosing(false);
-    setIsSkillGapPopupClosing(false);
-    setIsRoadmapPopupClosing(false);
+  setIsLoading(false);
+  setIsAnalyzingResume(false);
 
-    setIsLoading(false);
-    setIsAnalyzingResume(false);
+  if (fileInputRef.current) {
+    fileInputRef.current.value = "";
+  }
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+  if (skillGapFileInputRef.current) {
+    skillGapFileInputRef.current.value = "";
+  }
 
-    if (skillGapFileInputRef.current) {
-      skillGapFileInputRef.current.value = "";
-    }
-
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
-  };
-
+  setTimeout(() => {
+    inputRef.current?.focus();
+  }, 100);
+};
   // ==================================================
   // SKILL GAP POPUP
   // ==================================================
@@ -1206,11 +1195,10 @@ Please identify:
         roadmaps={roadmaps}
           selectedRoadmapId={selectedRoadmapId}
           onRoadmapSelect={handleRoadmapSelect}
-          onNewChat={handleNewChat}
+          onNewChat={newChat}
           profile={aboutYou}
           onOpenProfile={openProfilePopup}
           setShowProfilePopup={setShowProfilePopup}
-          newChat={newChat}
         />
 
         {/* ==================================================

@@ -37,13 +37,7 @@ export default function MainSidebar({
           </div>
         </div>
 
-        <button
-          type="button"
-          aria-label="Open sidebar menu"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-800 hover:text-white"
-        >
-          ☰
-        </button>
+      
       </div>
 
       {/* =========================================================
@@ -89,13 +83,7 @@ export default function MainSidebar({
               Your Roadmaps
             </p>
 
-            <button
-              type="button"
-              aria-label="Add roadmap"
-              className="flex h-5 w-5 items-center justify-center rounded text-zinc-600 transition hover:bg-zinc-800 hover:text-white"
-            >
-              +
-            </button>
+           
           </div>
 
           <div className="space-y-1">
