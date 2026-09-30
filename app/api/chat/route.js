@@ -1,45 +1,58 @@
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request) {
   try {
+    // ==========================================
+    // API KEY
+    // ==========================================
+
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY is missing");
+
+      return Response.json(
+        {
+          error: "OPENAI_API_KEY is not configured.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
     // ==========================================
     // GET REQUEST DATA
     // ==========================================
 
     const body = await request.json();
 
-    const message = body?.message;
-    const history = body?.history || [];
-    const topic = String(body?.topic || "").trim();
+    const message =
+      typeof body?.message === "string"
+        ? body.message.trim()
+        : "";
+
+    const history = Array.isArray(body?.history)
+      ? body.history
+      : [];
+
+    const topic = String(
+      body?.topic || ""
+    ).trim();
 
     // ==========================================
     // BASIC VALIDATION
     // ==========================================
 
-    if (!message || !message.trim()) {
+    if (!message) {
       return Response.json(
         {
           error: "Message is required",
         },
         {
           status: 400,
-        }
-      );
-    }
-
-    if (!process.env.GEMINI_API_KEY) {
-      console.error("GEMINI_API_KEY is missing");
-
-      return Response.json(
-        {
-          error: "GEMINI_API_KEY is not configured.",
-        },
-        {
-          status: 500,
         }
       );
     }
@@ -51,16 +64,21 @@ export async function POST(request) {
     const previousConversation = history
       .map((msg) => {
         const role =
-          msg.role === "user"
+          msg?.role === "user"
             ? "Student"
             : "Teacher";
 
-        return `${role}: ${msg.text || ""}`;
+        const text =
+          typeof msg?.text === "string"
+            ? msg.text
+            : "";
+
+        return `${role}: ${text}`;
       })
       .join("\n");
 
     // ==========================================
-    // UNIVERSAL TEACHER PROMPT
+    // TEACHER PROMPT
     // ==========================================
 
     const prompt = `
@@ -297,36 +315,52 @@ ANSWER
 `;
 
     // ==========================================
-    // GEMINI REQUEST
+    // OPENAI REQUEST
     // ==========================================
 
-    console.log("Sending request to Gemini teacher...");
+    console.log("Sending request to OpenAI teacher...");
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: prompt,
-    });
+    const response =
+      await openai.chat.completions.create({
+        model: "gpt-5.4-mini",
+
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a patient, knowledgeable and practical AI teacher. Follow the teacher instructions exactly.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
 
     // ==========================================
     // GET RESPONSE
     // ==========================================
 
     const aiResponse =
-      response.text?.trim() ||
+      response?.choices?.[0]?.message?.content?.trim() ||
       "I couldn't generate a response.";
 
-    console.log("Gemini teacher response received.");
+    console.log("OpenAI teacher response received.");
 
     // ==========================================
-    // RETURN
+    // RETURN RESPONSE
     // ==========================================
 
     return Response.json({
       response: aiResponse,
     });
   } catch (error) {
+    // ==========================================
+    // ERROR HANDLING
+    // ==========================================
+
     console.error(
-      "========== GEMINI TEACHER ERROR =========="
+      "========== OPENAI TEACHER ERROR =========="
     );
 
     console.error(error);
@@ -347,4 +381,3 @@ ANSWER
     );
   }
 }
-

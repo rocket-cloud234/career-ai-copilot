@@ -5,11 +5,27 @@ import { useState } from "react";
 export default function RoadmapSidebar({
   roadmaps = [],
   selectedRoadmapId = null,
-  onRoadmapSelect,
   onRoadmapsChange,
   onTopicSelect,
+   selectedRoadmap,
+   profile
 }) {
   const [openStage, setOpenStage] = useState(null);
+
+  // ==========================================
+  // DEFAULT ROADMAP ID FOR NOW
+  // ==========================================
+
+  
+const targetCareerId = selectedRoadmap?.targetCareerId || null;
+
+console.log("Target Career ID:", targetCareerId);
+
+
+
+  const DEFAULT_ROADMAP_ID =
+   targetCareerId;
+
 
   // ==========================================
   // FIND SELECTED ROADMAP
@@ -19,73 +35,263 @@ export default function RoadmapSidebar({
     (item) => item.id === selectedRoadmapId
   );
 
-  // ==========================================
-  // TOGGLE STAGE
-  // ==========================================
-
-  const toggleStage = (stageId) => {
-    setOpenStage((prev) =>
-      prev === stageId ? null : stageId
-    );
-  };
 
   // ==========================================
   // TOGGLE TOPIC COMPLETION
   // ==========================================
 
-  const toggleTopic = (stageId, topicName) => {
-    const updatedRoadmaps = roadmaps.map((item) => {
-      if (item.id !== selectedRoadmapId) {
-        return item;
-      }
+  const toggleTopic = async (
+    stageId,
+    topicName
+  ) => {
+    // ==========================================
+    // FIND CURRENT ROADMAP
+    // ==========================================
 
-      const updatedStages = (item.stages || []).map(
-        (stage) => {
-          if (stage.id !== stageId) {
-            return stage;
-          }
+    const currentRoadmap = roadmaps.find(
+      (item) => item.id === selectedRoadmapId
+    );
 
-          const updatedTopics = (
-            stage.topics || []
-          ).map((topic) => {
-            if (topic.name !== topicName) {
-              return topic;
-            }
+    if (!currentRoadmap) {
+      console.error(
+        "Selected roadmap not found."
+      );
+      return;
+    }
 
-            return {
-              ...topic,
-              completed: !topic.completed,
-            };
-          });
+    // ==========================================
+    // FIND PARENT STAGE
+    // ==========================================
 
-          const stageCompleted =
-            updatedTopics.length > 0 &&
-            updatedTopics.every(
-              (topic) => topic.completed
-            );
+    const currentStage = (
+      currentRoadmap.stages || []
+    ).find(
+      (stage) => stage.id === stageId
+    );
 
-          return {
-            ...stage,
-            topics: updatedTopics,
-            completed: stageCompleted,
-          };
+    if (!currentStage) {
+      console.error(
+        "Parent stage not found."
+      );
+      return;
+    }
+
+    // ==========================================
+    // FIND TOPIC
+    // ==========================================
+
+    const currentTopic = (
+      currentStage.topics || []
+    ).find(
+      (topic) => topic.name === topicName
+    );
+
+    if (!currentTopic) {
+      console.error("Topic not found.");
+      return;
+    }
+
+    // ==========================================
+    // NEW CHECKED STATE
+    // ==========================================
+
+    const newCompleted =
+      !currentTopic.completed;
+
+    console.log(
+      "=========================================="
+    );
+
+    console.log(
+      "Roadmap ID:",
+      DEFAULT_ROADMAP_ID
+    );
+
+    console.log(
+      "Parent stage:",
+      currentStage.title
+    );
+
+    console.log(
+      "Topic:",
+      currentTopic.name
+    );
+
+    console.log(
+      "Checked:",
+      newCompleted
+    );
+
+    console.log(
+      "=========================================="
+    );
+
+    // ==========================================
+    // UPDATE ROADMAP API
+    // ==========================================
+
+    try {
+      const response = await fetch(
+        "/api/update-roadmap",
+        {
+          method: "PUT",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            roadmapId:
+              DEFAULT_ROADMAP_ID,
+
+            parentStage:
+              currentStage.title,
+
+            topic:
+              currentTopic.name,
+
+            checked:
+              newCompleted,
+          }),
         }
       );
 
-      return {
-        ...item,
-        stages: updatedStages,
-      };
-    });
+      const data =
+        await response.json();
 
-    onRoadmapsChange?.(updatedRoadmaps);
+      if (!response.ok) {
+        console.error(
+          "Failed to update topic:",
+          data
+        );
+
+        return;
+      }
+
+      console.log(
+        "Topic updated successfully:",
+        data
+      );
+    } catch (error) {
+      console.error(
+        "UPDATE ROADMAP ERROR:",
+        error
+      );
+
+      return;
+    }
+
+    // ==========================================
+    // UPDATE LOCAL UI STATE
+    // ==========================================
+
+    const updatedRoadmaps =
+      roadmaps.map((item) => {
+        if (
+          item.id !==
+          selectedRoadmapId
+        ) {
+          return item;
+        }
+
+        const updatedStages =
+          (item.stages || []).map(
+            (stage) => {
+              if (
+                stage.id !==
+                stageId
+              ) {
+                return stage;
+              }
+
+              // ==========================================
+              // UPDATE TOPIC
+              // ==========================================
+
+              const updatedTopics =
+                (
+                  stage.topics ||
+                  []
+                ).map((topic) => {
+                  if (
+                    topic.name !==
+                    topicName
+                  ) {
+                    return topic;
+                  }
+
+                  return {
+                    ...topic,
+                    completed:
+                      newCompleted,
+                  };
+                });
+
+              // ==========================================
+              // CHECK IF ALL TOPICS ARE COMPLETED
+              // ==========================================
+
+              const stageCompleted =
+                updatedTopics.length >
+                  0 &&
+                updatedTopics.every(
+                  (topic) =>
+                    topic.completed ===
+                    true
+                );
+
+              return {
+                ...stage,
+
+                topics:
+                  updatedTopics,
+
+                completed:
+                  stageCompleted,
+              };
+            }
+          );
+
+        // ==========================================
+        // UPDATE ROADMAP
+        // ==========================================
+
+        // Check if every stage is completed
+        const roadmapCompleted =
+          updatedStages.length > 0 &&
+          updatedStages.every(
+            (stage) =>
+              stage.completed === true
+          );
+
+        return {
+          ...item,
+
+          stages:
+            updatedStages,
+
+          completed:
+            roadmapCompleted,
+        };
+      });
+
+    // ==========================================
+    // UPDATE PARENT COMPONENT
+    // ==========================================
+
+    onRoadmapsChange?.(
+      updatedRoadmaps
+    );
   };
 
   // ==========================================
   // SEND TOPIC AS MESSAGE
   // ==========================================
 
-  const handleTopicClick = (topicName) => {
+  const handleTopicClick = (
+    topicName
+  ) => {
     if (!topicName) return;
 
     onTopicSelect?.(topicName);
@@ -95,27 +301,34 @@ export default function RoadmapSidebar({
   // ROADMAP DATA
   // ==========================================
 
-  const stages = roadmap?.stages || [];
+  const stages =
+    roadmap?.stages || [];
 
-  const totalTopics = stages.reduce(
-    (total, stage) =>
-      total + (stage.topics?.length || 0),
-    0
-  );
+  const totalTopics =
+    stages.reduce(
+      (total, stage) =>
+        total +
+        (stage.topics?.length || 0),
+      0
+    );
 
-  const completedTopics = stages.reduce(
-    (total, stage) =>
-      total +
-      (stage.topics || []).filter(
-        (topic) => topic.completed
-      ).length,
-    0
-  );
+  const completedTopics =
+    stages.reduce(
+      (total, stage) =>
+        total +
+        (stage.topics || []).filter(
+          (topic) =>
+            topic.completed
+        ).length,
+      0
+    );
 
   const progress =
     totalTopics > 0
       ? Math.round(
-          (completedTopics / totalTopics) * 100
+          (completedTopics /
+            totalTopics) *
+            100
         )
       : 0;
 
@@ -139,18 +352,21 @@ export default function RoadmapSidebar({
                 strokeLinejoin="round"
               >
                 <path d="M5 4v5c0 1.1.9 2 2 2h10c1.1 0 2 .9 2 2v7" />
+
                 <circle
                   cx="5"
                   cy="4"
                   r="1.5"
                   fill="currentColor"
                 />
+
                 <circle
                   cx="17"
                   cy="11"
                   r="1.5"
                   fill="currentColor"
                 />
+
                 <circle
                   cx="19"
                   cy="20"
@@ -234,7 +450,8 @@ export default function RoadmapSidebar({
             </p>
 
             <p className="truncate text-[11px] text-zinc-500">
-              {roadmap.topic || roadmap.title}
+              {roadmap.topic ||
+                roadmap.title}
             </p>
           </div>
 
@@ -269,7 +486,8 @@ export default function RoadmapSidebar({
               </p>
 
               <p className="mt-0.5 text-[10px] text-zinc-500">
-                {completedTopics} of {totalTopics} topics completed
+                {completedTopics} of{" "}
+                {totalTopics} topics completed
               </p>
             </div>
 
@@ -298,11 +516,13 @@ export default function RoadmapSidebar({
             const isOpen =
               openStage === stage.id;
 
-            const topics = stage.topics || [];
+            const topics =
+              stage.topics || [];
 
             const completedCount =
               topics.filter(
-                (topic) => topic.completed
+                (topic) =>
+                  topic.completed
               ).length;
 
             const stageProgress =
@@ -330,7 +550,9 @@ export default function RoadmapSidebar({
                   type="button"
                   onClick={() => {
                     if (!isOpen) {
-                      setOpenStage(stage.id);
+                      setOpenStage(
+                        stage.id
+                      );
                     }
                   }}
                   onDoubleClick={() => {
@@ -363,7 +585,10 @@ export default function RoadmapSidebar({
                         <path d="m5 12 4 4L19 6" />
                       </svg>
                     ) : (
-                      String(stage.id).padStart(2, "0")
+                      String(stage.id).padStart(
+                        2,
+                        "0"
+                      )
                     )}
                   </div>
 
@@ -381,7 +606,8 @@ export default function RoadmapSidebar({
                     </p>
 
                     <p className="mt-0.5 text-[10px] text-zinc-600">
-                      {completedCount} / {topics.length} completed
+                      {completedCount} /{" "}
+                      {topics.length} completed
                     </p>
                   </div>
 
@@ -435,69 +661,75 @@ export default function RoadmapSidebar({
 
                     <div className="space-y-0.5">
 
-                      {topics.map((topic) => (
-                        <div
-                          key={topic.name}
-                          className="group flex w-full items-center gap-2 rounded-lg px-2 py-2 transition hover:bg-zinc-800/60"
-                        >
-
-                          {/* CHECKBOX */}
-
-                          <button
-                            type="button"
-                            aria-label={`Mark ${
+                      {topics.map(
+                        (topic) => (
+                          <div
+                            key={
                               topic.name
-                            } as ${
-                              topic.completed
-                                ? "incomplete"
-                                : "complete"
-                            }`}
-                            onClick={() =>
-                              toggleTopic(
-                                stage.id,
+                            }
+                            className="group flex w-full items-center gap-2 rounded-lg px-2 py-2 transition hover:bg-zinc-800/60"
+                          >
+
+                            {/* CHECKBOX */}
+
+                            <button
+                              type="button"
+                              aria-label={`Mark ${
                                 topic.name
-                              )
-                            }
-                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all ${
-                              topic.completed
-                                ? "border-white bg-white"
-                                : "border-zinc-700 bg-transparent group-hover:border-zinc-500"
-                            }`}
-                          >
-                            {topic.completed && (
-                              <svg
-                                viewBox="0 0 24 24"
-                                className="h-2.5 w-2.5 text-black"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="3"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="m5 12 4 4L19 6" />
-                              </svg>
-                            )}
-                          </button>
+                              } as ${
+                                topic.completed
+                                  ? "incomplete"
+                                  : "complete"
+                              }`}
+                              onClick={() =>
+                                toggleTopic(
+                                  stage.id,
+                                  topic.name
+                                )
+                              }
+                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all ${
+                                topic.completed
+                                  ? "border-white bg-white"
+                                  : "border-zinc-700 bg-transparent group-hover:border-zinc-500"
+                              }`}
+                            >
+                              {topic.completed && (
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  className="h-2.5 w-2.5 text-black"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="3"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="m5 12 4 4L19 6" />
+                                </svg>
+                              )}
+                            </button>
 
-                          {/* CLICKABLE TOPIC NAME */}
+                            {/* CLICKABLE TOPIC NAME */}
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleTopicClick(topic.name)
-                            }
-                            className={`min-w-0 flex-1 cursor-pointer text-left text-[11px] leading-tight transition-colors hover:text-white ${
-                              topic.completed
-                                ? "text-zinc-600 line-through hover:text-zinc-400"
-                                : "text-zinc-400 group-hover:text-zinc-200"
-                            }`}
-                            title={`Ask about ${topic.name}`}
-                          >
-                            {topic.name}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleTopicClick(
+                                  topic.name
+                                )
+                              }
+                              className={`min-w-0 flex-1 cursor-pointer text-left text-[11px] leading-tight transition-colors hover:text-white ${
+                                topic.completed
+                                  ? "text-zinc-600 line-through hover:text-zinc-400"
+                                  : "text-zinc-400 group-hover:text-zinc-200"
+                              }`}
+                              title={`Ask about ${topic.name}`}
+                            >
+                              {topic.name}
+                            </button>
 
-                        </div>
-                      ))}
+                          </div>
+                        )
+                      )}
 
                     </div>
                   </div>

@@ -12,208 +12,32 @@ import Main from "./components/Main";
 import initialMessage from "../data/initialMessage";
 import suggestions from "../data/suggestions";
 
-
 export default function Home() {
+  // ==================================================
+  // ROADMAP STATE
+  // ==================================================
 
-const [roadmaps, setRoadmaps] = useState([]);
-  const [selectedRoadmapId, setSelectedRoadmapId] =
-    useState("");
+  const [roadmaps, setRoadmaps] = useState([]);
+  const [selectedRoadmapId, setSelectedRoadmapId] = useState(
+    "",
+  );
 
   const [careerPathOptions, setCareerPathOptions] = useState([]);
+
+  // ==================================================
+  // CHAT STATE
+  // ==================================================
 
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([initialMessage]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // ==================================================
+  // USER PROFILE
+  // ==================================================
+
   const [aboutYou, setAboutYou] = useState({});
 
-
-const loadUserData = async () => {
-  try {
-    // ==========================================
-    // LOAD USER
-    // ==========================================
-
-    const meResponse = await fetch("/api/auth/me", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    const meData = await meResponse.json();
-
-    if (!meResponse.ok || !meData.success) {
-      throw new Error(
-        meData.error || "Failed to load user."
-      );
-    }
-
-    const user = meData.user || {};
-
-    // ==========================================
-    // LOAD ROADMAPS
-    // ==========================================
-
-    const mapResponse = await fetch("/api/map", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    const mapData = await mapResponse.json();
-
-    if (!mapResponse.ok || !mapData.success) {
-      console.error(
-        mapData.error || "Failed to load roadmap data."
-      );
-
-      setRoadmaps([]);
-      setSelectedRoadmapId("");
-
-      setAboutYou((prev) => ({
-        ...prev,
-
-        name: user.name || "",
-        age: user.age || "",
-        interests: user.interests || "",
-        currentSkills: user.currentSkills || "",
-        background: user.background || "",
-        targetCareer: user.targetCareer || "",
-        targetCareerId: user.targetCareerId || "",
-        selectedRoadmap: "",
-      }));
-
-      return;
-    }
-
-    const loadedRoadmaps = Array.isArray(mapData.mapData)
-      ? mapData.mapData
-      : [];
-
-    setRoadmaps(loadedRoadmaps);
-
-    // ==========================================
-    // FIND USER'S SAVED ROADMAP
-    // ==========================================
-
-    const userCareer = String(
-      user.targetCareer || ""
-    ).trim();
-
-    const userCareerId = String(
-      user.targetCareerId || ""
-    ).trim();
-
-    let selectedRoadmap = null;
-
-    // Match by career ID
-    if (userCareerId) {
-      selectedRoadmap = loadedRoadmaps.find(
-        (roadmap) =>
-          String(
-            roadmap.targetCareerId ||
-              roadmap.careerId ||
-              ""
-          ).trim() === userCareerId
-      );
-
-      // Some roadmaps use their own ID
-      if (!selectedRoadmap) {
-        selectedRoadmap = loadedRoadmaps.find(
-          (roadmap) =>
-            String(roadmap.id || "").trim() ===
-            userCareerId
-        );
-      }
-    }
-
-    // Match by career name
-    if (!selectedRoadmap && userCareer) {
-      selectedRoadmap = loadedRoadmaps.find(
-        (roadmap) =>
-          String(
-            roadmap.targetCareer ||
-              roadmap.career ||
-              roadmap.title ||
-              roadmap.name ||
-              ""
-          )
-            .trim()
-            .toLowerCase() ===
-          userCareer.toLowerCase()
-      );
-    }
-
-    // ==========================================
-    // IMPORTANT
-    // NEVER FALL BACK TO FIRST ROADMAP
-    // ==========================================
-
-    if (selectedRoadmap) {
-      setSelectedRoadmapId(
-        selectedRoadmap.id || ""
-      );
-    } else {
-      setSelectedRoadmapId("");
-    }
-
-    // ==========================================
-    // UPDATE PROFILE
-    // ==========================================
-
-    setAboutYou({
-      name: user.name || "",
-      age: user.age || "",
-
-      interests: user.interests || "",
-      currentSkills: user.currentSkills || "",
-      background: user.background || "",
-
-      targetCareer:
-        selectedRoadmap?.targetCareer ||
-        user.targetCareer ||
-        "",
-
-      targetCareerId:
-        user.targetCareerId || "",
-
-      selectedRoadmap:
-        selectedRoadmap?.id || "",
-    });
-
-    console.log("USER RELOADED:", user);
-    console.log(
-      "ROADMAPS RELOADED:",
-      loadedRoadmaps
-    );
-    console.log(
-      "SELECTED ROADMAP:",
-      selectedRoadmap
-    );
-
-    return {
-      user,
-      roadmaps: loadedRoadmaps,
-      selectedRoadmap,
-    };
-  } catch (error) {
-    console.error(
-      "Failed to reload user/map data:",
-      error
-    );
-
-    throw error;
-  }
-};
-
-useEffect(() => {
-  loadUserData().catch((error) => {
-    console.error(
-      "Initial data load failed:",
-      error
-    );
-  });
-}, []);
   // ==================================================
   // RESUME
   // ==================================================
@@ -231,12 +55,15 @@ useEffect(() => {
   // ==================================================
 
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+
   const [showAboutYouPopup, setShowAboutYOUPopup] = useState(false);
 
   const [showSkillGapPopup, setShowSkillGapPopup] = useState(false);
+
   const [isSkillGapPopupClosing, setIsSkillGapPopupClosing] = useState(false);
 
   const [showRoadmapPopup, setShowRoadmapPopup] = useState(false);
+
   const [isRoadmapPopupClosing, setIsRoadmapPopupClosing] = useState(false);
 
   // ==================================================
@@ -274,145 +101,472 @@ useEffect(() => {
   // ==================================================
 
   /**
-   * Convert any career value into a consistent object.
+   * Safely convert a value into a displayable string.
+   *
+   * Supports:
+   *
+   * "Software Engineer"
+   *
+   * {
+   *   id: "123",
+   *   name: "Software Engineer"
+   * }
+   */
+  const getDisplayName = (value, fallback = "") => {
+    if (value === null || value === undefined) {
+      return fallback;
+    }
+
+    if (typeof value === "string" || typeof value === "number") {
+      return String(value).trim();
+    }
+
+    if (typeof value === "object") {
+      if (typeof value.name === "string" && value.name.trim()) {
+        return value.name.trim();
+      }
+
+      if (typeof value.title === "string" && value.title.trim()) {
+        return value.title.trim();
+      }
+
+      if (typeof value.targetCareer === "string" && value.targetCareer.trim()) {
+        return value.targetCareer.trim();
+      }
+
+      if (typeof value.career === "string" && value.career.trim()) {
+        return value.career.trim();
+      }
+
+      if (typeof value.label === "string" && value.label.trim()) {
+        return value.label.trim();
+      }
+
+      return fallback;
+    }
+
+    return fallback;
+  };
+
+  /**
+   * Safely extract an ID from:
+   *
+   * "123"
+   *
+   * or:
+   *
+   * {
+   *   id: "123",
+   *   name: "Software Engineer"
+   * }
+   */
+  const getCareerId = (value, fallback = "") => {
+    if (value === null || value === undefined || value === "") {
+      return fallback;
+    }
+
+    if (typeof value === "object") {
+      return String(
+        value.id || value.targetCareerId || value.careerId || fallback || "",
+      ).trim();
+    }
+
+    return String(value).trim();
+  };
+
+  /**
+   * Normalize career into:
+   *
+   * {
+   *   id: "...",
+   *   name: "..."
+   * }
    */
   const normalizeCareer = (career, fallbackId = "") => {
-    if (!career) {
-      return {
-        id: fallbackId,
-        name: "",
-      };
-    }
-
-    if (typeof career === "object") {
-      return {
-        id: career.id || career.targetCareerId || fallbackId,
-        name: career.name || career.title || career.targetCareer || "",
-      };
-    }
-
     return {
-      id: fallbackId,
-      name: String(career),
+      id: getCareerId(career, fallbackId),
+
+      name: getDisplayName(career, ""),
     };
   };
 
   /**
-   * Find a roadmap by ID.
+   * Safely get roadmap ID.
+   *
+   * Supports:
+   *
+   * roadmap.id
+   *
+   * roadmap._id
+   *
+   * roadmap.roadmapId
+   */
+  const getRoadmapId = (roadmap) => {
+    if (!roadmap) return "";
+
+    return String(roadmap.id || roadmap._id || roadmap.roadmapId || "").trim();
+  };
+
+  /**
+   * Get the career information from a roadmap.
+   *
+   * Supports:
+   *
+   * targetCareer: "Software Engineer"
+   *
+   * targetCareer: {
+   *   id: "123",
+   *   name: "Software Engineer"
+   * }
+   */
+  const getRoadmapCareer = (roadmap) => {
+    if (!roadmap) {
+      return {
+        id: "",
+        name: "",
+      };
+    }
+
+    const roadmapId = getRoadmapId(roadmap);
+
+    const careerValue =
+      roadmap.targetCareer ??
+      roadmap.career ??
+      roadmap.title ??
+      roadmap.name ??
+      "";
+
+    const careerId =
+      roadmap.targetCareerId ||
+      roadmap.careerId ||
+      getCareerId(careerValue) ||
+      roadmapId;
+
+    const career = normalizeCareer(careerValue, careerId);
+
+    return {
+      id: career.id || careerId || roadmapId,
+
+      name: career.name || "",
+    };
+  };
+
+  /**
+   * Find roadmap by ID.
    */
   const getRoadmapById = (roadmapId) => {
-    return roadmaps.find((roadmap) => roadmap.id === roadmapId);
+    const id = String(roadmapId || "").trim();
+
+    return roadmaps.find((roadmap) => getRoadmapId(roadmap) === id);
   };
+
+  // ==================================================
+  // LOAD USER + ROADMAP DATA
+  // ==================================================
+
+  const loadUserData = async () => {
+    try {
+      // ==========================================
+      // LOAD USER
+      // ==========================================
+
+      const meResponse = await fetch("/api/auth/me", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const meData = await meResponse.json();
+
+      if (!meResponse.ok || !meData.success) {
+        throw new Error(meData.error || "Failed to load user.");
+      }
+
+      const user = meData.user || {};
+
+      // ==========================================
+      // LOAD ROADMAPS
+      // ==========================================
+
+      const mapResponse = await fetch("/api/map", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const mapData = await mapResponse.json();
+
+      if (!mapResponse.ok || !mapData.success) {
+        console.error(mapData.error || "Failed to load roadmap data.");
+
+        setRoadmaps([]);
+        setSelectedRoadmapId("");
+
+        const userCareer = normalizeCareer(
+          user.targetCareer,
+          user.targetCareerId,
+        );
+
+        setAboutYou({
+          name: user.name || "",
+          age: user.age || "",
+          interests: user.interests || "",
+          currentSkills: user.currentSkills || "",
+          background: user.background || "",
+
+          targetCareer: userCareer.name,
+
+          targetCareerId: userCareer.id,
+
+          selectedRoadmap: "",
+        });
+
+        return;
+      }
+
+      const loadedRoadmaps = Array.isArray(mapData.mapData)
+        ? mapData.mapData
+        : [];
+
+      setRoadmaps(loadedRoadmaps);
+
+      // ==========================================
+      // USER CAREER
+      // ==========================================
+
+      const userCareer = normalizeCareer(
+        user.targetCareer,
+        user.targetCareerId,
+      );
+
+      const userCareerName = userCareer.name.trim().toLowerCase();
+
+      const userCareerId = userCareer.id.trim();
+
+      // ==========================================
+      // FIND USER'S SAVED ROADMAP
+      // ==========================================
+
+      let selectedRoadmap = null;
+
+      // ==========================================
+      // MATCH BY CAREER ID
+      // ==========================================
+
+      if (userCareerId) {
+        selectedRoadmap = loadedRoadmaps.find((roadmap) => {
+          const roadmapId = getRoadmapId(roadmap);
+
+          const roadmapCareer = getRoadmapCareer(roadmap);
+
+          return (
+            roadmapCareer.id === userCareerId || roadmapId === userCareerId
+          );
+        });
+      }
+
+      // ==========================================
+      // MATCH BY CAREER NAME
+      // ==========================================
+
+      if (!selectedRoadmap && userCareerName) {
+        selectedRoadmap = loadedRoadmaps.find((roadmap) => {
+          const roadmapCareer = getRoadmapCareer(roadmap);
+
+          return roadmapCareer.name.trim().toLowerCase() === userCareerName;
+        });
+      }
+
+      // ==========================================
+      // NEVER FALL BACK TO FIRST ROADMAP
+      // ==========================================
+
+      if (selectedRoadmap) {
+        const roadmapId = getRoadmapId(selectedRoadmap);
+
+        setSelectedRoadmapId(roadmapId);
+      } else {
+        setSelectedRoadmapId("");
+      }
+
+      // ==========================================
+      // NORMALIZE SELECTED CAREER
+      // ==========================================
+
+      const selectedCareer = selectedRoadmap
+        ? getRoadmapCareer(selectedRoadmap)
+        : userCareer;
+
+      const selectedRoadmapIdValue = selectedRoadmap
+        ? getRoadmapId(selectedRoadmap)
+        : "";
+
+      // ==========================================
+      // UPDATE PROFILE
+      // ==========================================
+
+      setAboutYou({
+        name: user.name || "",
+        age: user.age || "",
+
+        interests: user.interests || "",
+
+        currentSkills: user.currentSkills || "",
+
+        background: user.background || "",
+
+        // IMPORTANT:
+        // Always store a STRING here.
+        targetCareer: selectedCareer.name || "",
+
+        targetCareerId: selectedCareer.id || "",
+
+        selectedRoadmap: selectedRoadmapIdValue,
+      });
+
+      console.log("USER RELOADED:", user);
+
+      console.log("ROADMAPS RELOADED:", loadedRoadmaps);
+
+      console.log("SELECTED ROADMAP:", selectedRoadmap);
+
+      console.log("SELECTED CAREER:", selectedCareer);
+
+      return {
+        user,
+        roadmaps: loadedRoadmaps,
+        selectedRoadmap,
+      };
+    } catch (error) {
+      console.error("Failed to reload user/map data:", error);
+
+      throw error;
+    }
+  };
+
+  // ==================================================
+  // INITIAL LOAD
+  // ==================================================
+
+  useEffect(() => {
+    loadUserData().catch((error) => {
+      console.error("Initial data load failed:", error);
+    });
+  }, []);
 
   // ==================================================
   // ROADMAP SELECT
   // ==================================================
 
-const handleRoadmapSelect = (roadmapId) => {
-  const roadmap = getRoadmapById(roadmapId);
+  const handleRoadmapSelect = (roadmapId) => {
+    const roadmap = getRoadmapById(roadmapId);
 
-  if (!roadmap) return;
-
-  setSelectedRoadmapId(roadmap.id);
-
-  setAboutYou((prev) => ({
-    ...prev,
-
-    targetCareer:
-      roadmap.targetCareer || "",
-
-    targetCareerId:
-      roadmap.targetCareerId ||
-      roadmap.careerId ||
-      roadmap.id,
-
-    selectedRoadmap:
-      roadmap.id,
-  }));
-};
-
-
-
-  // ==================================================
-// CAREER PATH SUBMITTED FROM CHAT
-// ==================================================
-
-const handleCareerPathSubmitted = async ({
-  targetCareer,
-  targetCareerId,
-}) => {
-  try {
-    // ------------------------------------------------
-    // Update UI immediately
-    // ------------------------------------------------
-
-    setAboutYou((prev) => ({
-      ...prev,
-      targetCareer: targetCareer || "",
-      targetCareerId: targetCareerId || "",
-      selectedRoadmap: targetCareerId || "",
-    }));
-
-    setSelectedRoadmapId(targetCareerId || "");
-
-    // ------------------------------------------------
-    // Fetch latest user data from server
-    // This makes the UI match MongoDB immediately.
-    // ------------------------------------------------
-
-    const response = await fetch("/api/auth/me", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-      console.error(
-        data?.error || "Failed to refresh user career data."
-      );
-
+    if (!roadmap) {
       return;
     }
 
-    const user = data.user || {};
+    const actualRoadmapId = getRoadmapId(roadmap);
 
-    // ------------------------------------------------
-    // Use server values as final source of truth
-    // ------------------------------------------------
+    const career = getRoadmapCareer(roadmap);
+
+    setSelectedRoadmapId(actualRoadmapId);
 
     setAboutYou((prev) => ({
       ...prev,
 
-      targetCareer:
-        user.targetCareer || targetCareer || "",
+      targetCareer: career.name || "",
 
-      targetCareerId:
-        user.targetCareerId || targetCareerId || "",
+      targetCareerId: career.id || actualRoadmapId,
 
-      selectedRoadmap:
-        user.targetCareerId || targetCareerId || "",
+      selectedRoadmap: actualRoadmapId,
     }));
 
-    setSelectedRoadmapId(
-      user.targetCareerId || targetCareerId || ""
-    );
+    console.log("ROADMAP SELECTED:", roadmap);
 
-    console.log("Career path refreshed:", {
-      targetCareer:
-        user.targetCareer || targetCareer || "",
+    console.log("CAREER SELECTED:", career);
+  };
 
-      targetCareerId:
-        user.targetCareerId || targetCareerId || "",
-    });
-  } catch (error) {
-    console.error(
-      "Failed to refresh career path:",
-      error
-    );
-  }
-};
+  // ==================================================
+  // CAREER PATH SUBMITTED FROM CHAT
+  // ==================================================
+
+  const handleCareerPathSubmitted = async ({
+    targetCareer,
+    targetCareerId,
+  }) => {
+    try {
+      const career = normalizeCareer(targetCareer, targetCareerId);
+
+      // ==========================================
+      // UPDATE UI IMMEDIATELY
+      // ==========================================
+
+      setAboutYou((prev) => ({
+        ...prev,
+
+        targetCareer: career.name,
+
+        targetCareerId: career.id,
+
+        selectedRoadmap: career.id,
+      }));
+
+      setSelectedRoadmapId(career.id);
+
+      // ==========================================
+      // FETCH SERVER DATA
+      // ==========================================
+
+      const response = await fetch("/api/auth/me", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        console.error(data?.error || "Failed to refresh user career data.");
+
+        return;
+      }
+
+      const user = data.user || {};
+
+      const serverCareer = normalizeCareer(
+        user.targetCareer,
+        user.targetCareerId,
+      );
+
+      const finalCareerName = serverCareer.name || career.name || "";
+
+      const finalCareerId = serverCareer.id || career.id || "";
+
+      // ==========================================
+      // SERVER = SOURCE OF TRUTH
+      // ==========================================
+
+      setAboutYou((prev) => ({
+        ...prev,
+
+        targetCareer: finalCareerName,
+
+        targetCareerId: finalCareerId,
+
+        selectedRoadmap: finalCareerId,
+      }));
+
+      setSelectedRoadmapId(finalCareerId);
+
+      console.log("Career path refreshed:", {
+        targetCareer: finalCareerName,
+
+        targetCareerId: finalCareerId,
+      });
+    } catch (error) {
+      console.error("Failed to refresh career path:", error);
+    }
+  };
 
   // ==================================================
   // TARGET CAREER CHANGE
@@ -423,28 +577,38 @@ const handleCareerPathSubmitted = async ({
 
     setAboutYou((prev) => ({
       ...prev,
+
       targetCareer: career.name,
+
       targetCareerId: career.id,
     }));
 
-    /*
-     * If this career already has a roadmap,
-     * automatically select that roadmap.
-     */
+    // ==========================================
+    // FIND MATCHING ROADMAP
+    // ==========================================
+
     if (career.id) {
-      const matchingRoadmap = roadmaps.find(
-        (roadmap) =>
-          roadmap.id === career.id || roadmap.targetCareerId === career.id,
-      );
+      const matchingRoadmap = roadmaps.find((roadmap) => {
+        const roadmapId = getRoadmapId(roadmap);
+
+        const roadmapCareer = getRoadmapCareer(roadmap);
+
+        return roadmapId === career.id || roadmapCareer.id === career.id;
+      });
 
       if (matchingRoadmap) {
-        setSelectedRoadmapId(matchingRoadmap.id);
+        const roadmapId = getRoadmapId(matchingRoadmap);
+
+        setSelectedRoadmapId(roadmapId);
 
         setAboutYou((prev) => ({
           ...prev,
+
           targetCareer: career.name,
+
           targetCareerId: career.id,
-          selectedRoadmap: matchingRoadmap.id,
+
+          selectedRoadmap: roadmapId,
         }));
       }
     }
@@ -475,217 +639,245 @@ const handleCareerPathSubmitted = async ({
   };
 
   // ==================================================
-  // PROFILE SAVE
+  // SAVE USER PROFILE TO DATABASE
   // ==================================================
 
-const saveUserProfileToDatabase = async (profileData) => {
-  try {
-    // Get logged-in user
-    const meResponse = await fetch("/api/auth/me", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
+  const saveUserProfileToDatabase = async (profileData) => {
+    try {
+      // ==========================================
+      // GET LOGGED-IN USER
+      // ==========================================
 
-    const meData = await meResponse.json();
+      const meResponse = await fetch("/api/auth/me", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
 
-    console.log("AUTH ME RESPONSE:", meData);
+      const meData = await meResponse.json();
 
-    if (!meResponse.ok || !meData.success) {
-      throw new Error(
-        meData.error || "Unable to identify logged-in user."
+      console.log("AUTH ME RESPONSE:", meData);
+
+      if (!meResponse.ok || !meData.success) {
+        throw new Error(meData.error || "Unable to identify logged-in user.");
+      }
+
+      // ==========================================
+      // GET USER ID
+      // ==========================================
+
+      const userId = meData.user?._id || meData.user?.id || meData.user?.userId;
+
+      console.log("USER ID:", userId);
+
+      if (!userId) {
+        throw new Error("User ID was not found.");
+      }
+
+      // ==========================================
+      // NORMALIZE CAREER
+      // ==========================================
+
+      const career = normalizeCareer(
+        profileData.targetCareer,
+        profileData.targetCareerId,
       );
+
+      // ==========================================
+      // SAVE PROFILE
+      // ==========================================
+
+      const response = await fetch("/api/auth/profile", {
+        method: "POST",
+
+        credentials: "include",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          userId: String(userId),
+
+          name: profileData.name || "",
+
+          age:
+            profileData.age !== undefined && profileData.age !== null
+              ? profileData.age
+              : "",
+
+          interests: profileData.interests || "",
+
+          currentSkills: profileData.currentSkills || "",
+
+          background: profileData.background || "",
+
+          targetCareer: career.name || "",
+        }),
+      });
+
+      const data = await response.json();
+
+      console.log("PROFILE SAVE RESPONSE:", data);
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to save profile.");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Save profile error:", error);
+
+      throw error;
     }
+  };
 
-    // Get MongoDB user ID
-    const userId =
-      meData.user?._id ||
-      meData.user?.id ||
-      meData.user?.userId;
+  // ==================================================
+  // SAVE PROFILE
+  // ==================================================
 
-    console.log("USER ID:", userId);
+  const handleSaveProfile = async (profileData) => {
+    try {
+      const career = normalizeCareer(
+        profileData.targetCareer,
+        profileData.targetCareerId,
+      );
 
-    if (!userId) {
-      throw new Error("User ID was not found.");
-    }
+      const roadmapId =
+        profileData.selectedRoadmap ||
+        profileData.targetCareerId ||
+        career.id ||
+        "";
 
-    // Save profile
-    const response = await fetch("/api/auth/profile", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId: String(userId),
-
+      const newProfile = {
         name: profileData.name || "",
-        age:
-          profileData.age !== undefined &&
-          profileData.age !== null
-            ? profileData.age
-            : "",
+
+        age: profileData.age || "",
 
         interests: profileData.interests || "",
+
         currentSkills: profileData.currentSkills || "",
+
         background: profileData.background || "",
-        targetCareer: profileData.targetCareer || "",
-      }),
-    });
 
-    const data = await response.json();
+        targetCareer: career.name,
 
-    console.log("PROFILE SAVE RESPONSE:", data);
+        targetCareerId: career.id,
 
-    if (!response.ok || !data.success) {
-      throw new Error(
-        data.error || "Failed to save profile."
-      );
+        selectedRoadmap: roadmapId,
+      };
+
+      // ==========================================
+      // SAVE TO MONGODB
+      // ==========================================
+
+      await saveUserProfileToDatabase(newProfile);
+
+      // ==========================================
+      // CLOSE POPUP
+      // ==========================================
+
+      setShowAboutYOUPopup(false);
+
+      // ==========================================
+      // RELOAD EVERYTHING
+      // ==========================================
+
+      await loadUserData();
+
+      console.log("Profile saved and data reloaded.");
+    } catch (error) {
+      console.error("Profile save error:", error);
+
+      alert(error.message || "Unable to save your profile. Please try again.");
     }
-
-    return data;
-  } catch (error) {
-    console.error("Save profile error:", error);
-    throw error;
-  }
-};
-
-const handleSaveProfile = async (profileData) => {
-  try {
-    const career = normalizeCareer(
-      profileData.targetCareer,
-      profileData.targetCareerId
-    );
-
-    const roadmapId =
-      profileData.selectedRoadmap ||
-      profileData.targetCareerId ||
-      career.id ||
-      "";
-
-    const newProfile = {
-      name: profileData.name || "",
-      age: profileData.age || "",
-
-      interests:
-        profileData.interests || "",
-
-      currentSkills:
-        profileData.currentSkills || "",
-
-      background:
-        profileData.background || "",
-
-      targetCareer:
-        career.name,
-
-      targetCareerId:
-        career.id,
-
-      selectedRoadmap:
-        roadmapId,
-    };
-
-    // ==========================================
-    // SAVE TO MONGODB
-    // ==========================================
-
-    await saveUserProfileToDatabase(
-      newProfile
-    );
-
-    // ==========================================
-    // CLOSE POPUP
-    // ==========================================
-
-    setShowAboutYOUPopup(false);
-
-    // ==========================================
-    // RELOAD EVERYTHING FROM SERVER
-    // ==========================================
-
-    await loadUserData();
-
-    console.log(
-      "Profile saved and data reloaded."
-    );
-  } catch (error) {
-    console.error(
-      "Profile save error:",
-      error
-    );
-
-    alert(
-      error.message ||
-        "Unable to save your profile. Please try again."
-    );
-  }
-};
+  };
 
   // ==================================================
   // SAVE PROFILE + REGENERATE CAREER
   // ==================================================
 
-const handleNewSaveProfile = async (profileData) => {
-  try {
-    const career = normalizeCareer(
-      profileData.targetCareer,
-      profileData.targetCareerId
-    );
+  const handleNewSaveProfile = async (profileData) => {
+    try {
+      const career = normalizeCareer(
+        profileData.targetCareer,
+        profileData.targetCareerId,
+      );
 
-    const roadmapId =
-      profileData.selectedRoadmap ||
-      profileData.targetCareerId ||
-      career.id ||
-      "";
+      const roadmapId =
+        profileData.selectedRoadmap ||
+        profileData.targetCareerId ||
+        career.id ||
+        "";
 
-    const newProfile = {
-      name: profileData.name || "",
-      age: profileData.age || "",
-      interests: profileData.interests || "",
-      currentSkills: profileData.currentSkills || "",
-      background: profileData.background || "",
-      targetCareer: career.name,
-      targetCareerId: career.id,
-      selectedRoadmap: roadmapId,
-    };
+      const newProfile = {
+        name: profileData.name || "",
 
-    // SAVE PROFILE
-    await saveUserProfileToDatabase(newProfile);
+        age: profileData.age || "",
 
-    // CLOSE PROFILE POPUP
-    setShowProfilePopup(false);
+        interests: profileData.interests || "",
 
-    // RELOAD USER + ROADMAPS
-    await loadUserData();
+        currentSkills: profileData.currentSkills || "",
 
-    // RESET CHAT
-    setMessages([initialMessage]);
-    setMessage("");
-    setRoadmapText("");
-    setIsMockInterview(false);
+        background: profileData.background || "",
 
-    // CALL CAREER PATH API
-    await regenerateCareerPath(newProfile);
+        targetCareer: career.name,
 
-    console.log(
-      "Profile saved, data reloaded, and career path regenerated."
-    );
-  } catch (error) {
-    console.error("New profile save error:", error);
+        targetCareerId: career.id,
 
-    alert(
-      error.message ||
-        "Unable to save your profile. Please try again."
-    );
-  }
-};
+        selectedRoadmap: roadmapId,
+      };
+
+      // ==========================================
+      // SAVE PROFILE
+      // ==========================================
+
+      await saveUserProfileToDatabase(newProfile);
+
+      // ==========================================
+      // CLOSE PROFILE POPUP
+      // ==========================================
+
+      setShowProfilePopup(false);
+
+      // ==========================================
+      // RELOAD USER + ROADMAPS
+      // ==========================================
+
+      await loadUserData();
+
+      // ==========================================
+      // RESET CHAT
+      // ==========================================
+
+      setMessages([initialMessage]);
+
+      setMessage("");
+      setRoadmapText("");
+      setIsMockInterview(false);
+
+      // ==========================================
+      // REGENERATE CAREER PATH
+      // ==========================================
+
+      await regenerateCareerPath(newProfile);
+
+      console.log("Profile saved, data reloaded, and career path regenerated.");
+    } catch (error) {
+      console.error("New profile save error:", error);
+
+      alert(error.message || "Unable to save your profile. Please try again.");
+    }
+  };
+
   // ==================================================
   // FIND CAREER PATH
   // ==================================================
 
   const findCareerPath = async () => {
-    if (isLoading || isAnalyzingResume) return;
+    if (isLoading || isAnalyzingResume) {
+      return;
+    }
 
     const hasRequiredData =
       aboutYou.interests?.trim() &&
@@ -694,12 +886,15 @@ const handleNewSaveProfile = async (profileData) => {
 
     if (!hasRequiredData) {
       setShowProfilePopup(true);
+
       return;
     }
 
     const userMessage = {
       id: crypto.randomUUID(),
+
       role: "user",
+
       text: "Find my career path",
     };
 
@@ -712,14 +907,17 @@ const handleNewSaveProfile = async (profileData) => {
     try {
       const response = await fetch("/api/career-path", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           message: "Find my career path",
 
           history: previousMessages.map((msg) => ({
             role: msg.role,
+
             text: msg.text,
           })),
 
@@ -741,10 +939,14 @@ const handleNewSaveProfile = async (profileData) => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           type: "career-path",
+
           text: aiResponse,
         },
       ]);
@@ -753,9 +955,12 @@ const handleNewSaveProfile = async (profileData) => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text: error?.message || "Sorry, I couldn't find your career path.",
         },
       ]);
@@ -773,21 +978,26 @@ const handleNewSaveProfile = async (profileData) => {
   // ==================================================
 
   const regenerateCareerPath = async (profileData) => {
-    if (isLoading || isAnalyzingResume) return;
+    if (isLoading || isAnalyzingResume) {
+      return;
+    }
 
     setIsLoading(true);
 
     try {
       const response = await fetch("/api/career-path", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           message: "Find my career path",
 
           history: messages.map((msg) => ({
             role: msg.role,
+
             text: msg.text,
           })),
 
@@ -810,10 +1020,14 @@ const handleNewSaveProfile = async (profileData) => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           type: "career-path",
+
           text: aiResponse,
         },
       ]);
@@ -822,9 +1036,12 @@ const handleNewSaveProfile = async (profileData) => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text:
             error?.message || "Sorry, I couldn't regenerate your career path.",
         },
@@ -838,190 +1055,185 @@ const handleNewSaveProfile = async (profileData) => {
     }
   };
 
+  // ==================================================
+  // BUILD LEARNING ROADMAP
+  // ==================================================
 
-// ==================================================
-// BUILD LEARNING ROADMAP
-// ==================================================
-
-const buildLearningRoadmap = async () => {
-  if (isLoading || isAnalyzingResume) return;
-
-  // =========================================================
-  // GET CURRENT TARGET CAREER
-  // =========================================================
-
-  const career = normalizeCareer(
-    aboutYou.targetCareer,
-    aboutYou.targetCareerId,
-  );
-
-  if (!career.name) {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        role: "ai",
-        text: "Please select a target career before building a roadmap.",
-      },
-    ]);
-
-    return;
-  }
-
-  const currentCareerName = String(career.name || "")
-    .trim()
-    .toLowerCase();
-
-  const currentCareerId = String(career.id || "").trim();
-
-  // =========================================================
-  // CHECK IF ROADMAP ALREADY EXISTS
-  // =========================================================
-
-  const existingRoadmap = roadmaps.find((roadmap) => {
-    const roadmapId = String(roadmap.id || "").trim();
-
-    const roadmapCareerId = String(
-      roadmap.targetCareerId ||
-        roadmap.careerId ||
-        "",
-    ).trim();
-
-    const roadmapCareerName = String(
-      roadmap.targetCareer ||
-        roadmap.career ||
-        roadmap.title ||
-        roadmap.name ||
-        "",
-    )
-      .trim()
-      .toLowerCase();
-
-    // Match by targetCareerId
-    if (
-      currentCareerId &&
-      roadmapCareerId &&
-      roadmapCareerId === currentCareerId
-    ) {
-      return true;
+  const buildLearningRoadmap = async () => {
+    if (isLoading || isAnalyzingResume) {
+      return;
     }
 
-    // Match roadmap ID with career ID
-    if (
-      currentCareerId &&
-      roadmapId &&
-      roadmapId === currentCareerId
-    ) {
-      return true;
-    }
+    // ==========================================
+    // CURRENT CAREER
+    // ==========================================
 
-    // Match by career name
-    if (
-      currentCareerName &&
-      roadmapCareerName &&
-      roadmapCareerName === currentCareerName
-    ) {
-      return true;
-    }
-
-    return false;
-  });
-
-  // =========================================================
-  // EXISTING ROADMAP FOUND
-  // DO NOT GENERATE ANOTHER ONE
-  // DO NOT USE type: "roadmap"
-  // =========================================================
-
-  if (existingRoadmap) {
-    console.log(
-      "Existing roadmap found. Skipping generation:",
-      existingRoadmap,
+    const career = normalizeCareer(
+      aboutYou.targetCareer,
+      aboutYou.targetCareerId,
     );
 
-    const existingCareerName =
-      existingRoadmap.targetCareer ||
-      existingRoadmap.career ||
-      existingRoadmap.title ||
-      existingRoadmap.name ||
-      career.name;
+    if (!career.name) {
+      setMessages((prev) => [
+        ...prev,
 
-    const existingCareerId =
-      existingRoadmap.targetCareerId ||
-      existingRoadmap.careerId ||
-      existingRoadmap.id ||
-      career.id;
+        {
+          id: crypto.randomUUID(),
 
-    // Select existing roadmap
-    setSelectedRoadmapId(existingRoadmap.id);
+          role: "ai",
 
-    // Synchronize About You data
-    setAboutYou((prev) => ({
-      ...prev,
-      targetCareer: existingCareerName,
-      targetCareerId: existingCareerId,
-      selectedRoadmap: existingRoadmap.id,
-    }));
+          text: "Please select a target career before building a roadmap.",
+        },
+      ]);
 
-    // Keep roadmap text synchronized
-    setRoadmapText(
-      JSON.stringify(existingRoadmap, null, 2),
-    );
+      return;
+    }
 
-    // IMPORTANT:
-    // No `type: "roadmap"` here.
-    // This means Main will NOT show the "Show Roadmap →" button.
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        role: "ai",
-        text: `You already have a learning roadmap for ${existingCareerName}. I've selected your existing roadmap.`,
-      },
-    ]);
+    const currentCareerName = career.name.trim().toLowerCase();
 
-    return;
-  }
+    const currentCareerId = String(career.id || "").trim();
 
-  // =========================================================
-  // NO EXISTING ROADMAP
-  // GENERATE A NEW ONE
-  // =========================================================
+    // ==========================================
+    // CHECK EXISTING ROADMAP
+    // ==========================================
 
-  const userMessage = {
-    id: crypto.randomUUID(),
-    role: "user",
-    text: "Build a learning roadmap",
-  };
+    const existingRoadmap = roadmaps.find((roadmap) => {
+      const roadmapId = getRoadmapId(roadmap);
 
-  // Keep the messages before adding the new user message
-  // for the API history.
-  const previousMessages = messages;
+      const roadmapCareer = getRoadmapCareer(roadmap);
 
-  setMessages((prev) => [
-    ...prev,
-    userMessage,
-  ]);
+      const roadmapCareerId = String(roadmapCareer.id || "").trim();
 
-  setIsLoading(true);
+      const roadmapCareerName = String(roadmapCareer.name || "")
+        .trim()
+        .toLowerCase();
 
-  try {
-    // =======================================================
-    // CALL ROADMAP API
-    // =======================================================
+      // Match career ID
+      if (
+        currentCareerId &&
+        roadmapCareerId &&
+        roadmapCareerId === currentCareerId
+      ) {
+        return true;
+      }
 
-    const response = await fetch(
-      "/api/roadmap-builder",
-      {
+      // Match roadmap ID
+      if (currentCareerId && roadmapId && roadmapId === currentCareerId) {
+        return true;
+      }
+
+      // Match career name
+      if (
+        currentCareerName &&
+        roadmapCareerName &&
+        roadmapCareerName === currentCareerName
+      ) {
+        return true;
+      }
+
+      return false;
+    });
+
+    // ==========================================
+    // EXISTING ROADMAP FOUND
+    // ==========================================
+
+    if (existingRoadmap) {
+      console.log(
+        "Existing roadmap found. Skipping generation:",
+        existingRoadmap,
+      );
+
+      const existingRoadmapId = getRoadmapId(existingRoadmap);
+
+      const existingCareer = getRoadmapCareer(existingRoadmap);
+
+      const existingCareerName = existingCareer.name || career.name;
+
+      const existingCareerId = existingCareer.id || career.id;
+
+      // ========================================
+      // SELECT EXISTING ROADMAP
+      // ========================================
+
+      setSelectedRoadmapId(existingRoadmapId);
+
+      // ========================================
+      // UPDATE PROFILE
+      // ========================================
+
+      setAboutYou((prev) => ({
+        ...prev,
+
+        targetCareer: existingCareerName,
+
+        targetCareerId: existingCareerId,
+
+        selectedRoadmap: existingRoadmapId,
+      }));
+
+      // ========================================
+      // SYNC ROADMAP TEXT
+      // ========================================
+
+      setRoadmapText(JSON.stringify(existingRoadmap, null, 2));
+
+      // ========================================
+      // MESSAGE ONLY
+      // ========================================
+
+      setMessages((prev) => [
+        ...prev,
+
+        {
+          id: crypto.randomUUID(),
+
+          role: "ai",
+
+          text: `You already have a learning roadmap for ${existingCareerName}. I've selected your existing roadmap.`,
+        },
+      ]);
+
+      return;
+    }
+
+    // ==========================================
+    // NO EXISTING ROADMAP
+    // GENERATE NEW ONE
+    // ==========================================
+
+    const userMessage = {
+      id: crypto.randomUUID(),
+
+      role: "user",
+
+      text: "Build a learning roadmap",
+    };
+
+    const previousMessages = messages;
+
+    setMessages((prev) => [...prev, userMessage]);
+
+    setIsLoading(true);
+
+    try {
+      // ========================================
+      // CALL ROADMAP API
+      // ========================================
+
+      const response = await fetch("/api/roadmap-builder", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           message: "Build a learning roadmap",
 
           history: previousMessages.map((msg) => ({
             role: msg.role,
+
             text: msg.text,
           })),
 
@@ -1029,249 +1241,198 @@ const buildLearningRoadmap = async () => {
             ...aboutYou,
 
             targetCareer: career.name,
+
             targetCareerId: career.id,
 
-            selectedRoadmap:
-              selectedRoadmapId,
+            selectedRoadmap: selectedRoadmapId,
           },
         }),
-      },
-    );
+      });
 
-    // =======================================================
-    // CHECK RESPONSE TYPE
-    // =======================================================
+      // ========================================
+      // CHECK RESPONSE TYPE
+      // ========================================
 
-    const contentType =
-      response.headers.get("content-type") || "";
+      const contentType = response.headers.get("content-type") || "";
 
-    if (!contentType.includes("application/json")) {
-      const rawResponse = await response.text();
+      if (!contentType.includes("application/json")) {
+        const rawResponse = await response.text();
 
-      console.error(
-        "Roadmap API returned non-JSON:",
-        rawResponse,
-      );
+        console.error("Roadmap API returned non-JSON:", rawResponse);
 
-      throw new Error(
-        `Roadmap API returned ${response.status} ${response.statusText}.`,
-      );
-    }
-
-    const data = await response.json();
-
-    // =======================================================
-    // HANDLE API ERROR
-    // =======================================================
-
-    if (!response.ok) {
-      throw new Error(
-        data.error ||
-          "Failed to build your learning roadmap.",
-      );
-    }
-
-    // =======================================================
-    // TARGET CAREER REQUIRED
-    // =======================================================
-
-    if (
-      data.response ===
-      "UK41Z_LAUNCH_TARGET_CAREER"
-    ) {
-      throw new Error(
-        "Please select a target career first.",
-      );
-    }
-
-    // =======================================================
-    // GET GENERATED ROADMAP
-    // =======================================================
-
-    const roadmap = data?.roadmap;
-
-    if (
-      !roadmap ||
-      typeof roadmap !== "object"
-    ) {
-      throw new Error(
-        "The AI did not return a valid roadmap.",
-      );
-    }
-
-    // =======================================================
-    // VALIDATE ROADMAP
-    // =======================================================
-
-    if (
-      !roadmap.id ||
-      !Array.isArray(roadmap.stages)
-    ) {
-      throw new Error(
-        "The generated roadmap has an invalid structure.",
-      );
-    }
-
-    // =======================================================
-    // ADD CAREER INFORMATION TO ROADMAP
-    // =======================================================
-
-    const roadmapWithCareer = {
-      ...roadmap,
-
-      targetCareer:
-        data?.targetCareer ||
-        roadmap.targetCareer ||
-        roadmap.career ||
-        roadmap.title ||
-        roadmap.name ||
-        career.name,
-
-      targetCareerId:
-        data?.targetCareerId ||
-        roadmap.targetCareerId ||
-        roadmap.careerId ||
-        career.id ||
-        roadmap.id,
-    };
-
-    // =======================================================
-    // UPDATE ROADMAP LIST
-    // =======================================================
-
-    setRoadmaps((prevRoadmaps) => {
-      const existingIndex =
-        prevRoadmaps.findIndex(
-          (item) =>
-            item.id === roadmapWithCareer.id,
+        throw new Error(
+          `Roadmap API returned ${response.status} ${response.statusText}.`,
         );
-
-      // Update existing roadmap if same ID exists
-      if (existingIndex !== -1) {
-        const updatedRoadmaps = [
-          ...prevRoadmaps,
-        ];
-
-        updatedRoadmaps[existingIndex] =
-          roadmapWithCareer;
-
-        return updatedRoadmaps;
       }
 
-      // Otherwise add new roadmap
-      return [
-        ...prevRoadmaps,
-        roadmapWithCareer,
-      ];
-    });
+      const data = await response.json();
 
-    // =======================================================
-    // NORMALIZE GENERATED CAREER
-    // =======================================================
+      // ========================================
+      // HANDLE ERROR
+      // ========================================
 
-    const generatedCareer =
-      normalizeCareer(
-        roadmapWithCareer.targetCareer,
-        roadmapWithCareer.targetCareerId ||
-          roadmapWithCareer.id,
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to build your learning roadmap.");
+      }
+
+      // ========================================
+      // TARGET CAREER REQUIRED
+      // ========================================
+
+      if (data.response === "UK41Z_LAUNCH_TARGET_CAREER") {
+        throw new Error("Please select a target career first.");
+      }
+
+      // ========================================
+      // GET GENERATED ROADMAP
+      // ========================================
+
+      const roadmap = data?.roadmap;
+
+      if (!roadmap || typeof roadmap !== "object") {
+        throw new Error("The AI did not return a valid roadmap.");
+      }
+
+      // ========================================
+      // VALIDATE ROADMAP
+      // ========================================
+
+      if (!roadmap.id || !Array.isArray(roadmap.stages)) {
+        throw new Error("The generated roadmap has an invalid structure.");
+      }
+
+      // ========================================
+      // NORMALIZE CAREER FROM RESPONSE
+      // ========================================
+
+      const generatedCareer = normalizeCareer(
+        data?.targetCareer ||
+          roadmap.targetCareer ||
+          roadmap.career ||
+          roadmap.title ||
+          roadmap.name ||
+          career.name,
+
+        data?.targetCareerId ||
+          roadmap.targetCareerId ||
+          roadmap.careerId ||
+          career.id ||
+          roadmap.id,
       );
 
-    const finalCareer = {
-      id:
-        roadmapWithCareer.targetCareerId ||
-        roadmapWithCareer.id,
+      // ========================================
+      // CREATE FINAL ROADMAP
+      // ========================================
 
-      name:
-        generatedCareer.name ||
-        career.name,
-    };
+      const roadmapWithCareer = {
+        ...roadmap,
 
-    // =======================================================
-    // SELECT NEW ROADMAP
-    // =======================================================
+        targetCareer: generatedCareer.name,
 
-    setSelectedRoadmapId(
-      roadmapWithCareer.id,
-    );
+        targetCareerId: generatedCareer.id || roadmap.id,
+      };
 
-    // =======================================================
-    // UPDATE ABOUT YOU
-    // =======================================================
+      // ========================================
+      // UPDATE ROADMAP LIST
+      // ========================================
 
-    setAboutYou((prev) => ({
-      ...prev,
+      setRoadmaps((prevRoadmaps) => {
+        const existingIndex = prevRoadmaps.findIndex(
+          (item) => getRoadmapId(item) === getRoadmapId(roadmapWithCareer),
+        );
 
-      targetCareer:
-        finalCareer.name,
+        if (existingIndex !== -1) {
+          const updatedRoadmaps = [...prevRoadmaps];
 
-      targetCareerId:
-        finalCareer.id,
+          updatedRoadmaps[existingIndex] = roadmapWithCareer;
 
-      selectedRoadmap:
-        roadmapWithCareer.id,
-    }));
+          return updatedRoadmaps;
+        }
 
-    // =======================================================
-    // SAVE ROADMAP TEXT
-    // =======================================================
+        return [...prevRoadmaps, roadmapWithCareer];
+      });
 
-    setRoadmapText(
-      JSON.stringify(
-        roadmapWithCareer,
-        null,
-        2,
-      ),
-    );
+      // ========================================
+      // FINAL CAREER
+      // ========================================
 
-    // =======================================================
-    // SHOW SUCCESS MESSAGE
-    // `type: "roadmap"` IS INTENTIONAL HERE
-    // BECAUSE THIS IS A NEWLY GENERATED ROADMAP.
-    // =======================================================
+      const finalCareer = normalizeCareer(
+        roadmapWithCareer.targetCareer,
+        roadmapWithCareer.targetCareerId || roadmapWithCareer.id,
+      );
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        role: "ai",
-        type: "roadmap",
-        text:
-          "Your personalized learning roadmap is ready.",
-      },
-    ]);
-  } catch (error) {
-    // =======================================================
-    // ERROR HANDLING
-    // =======================================================
+      // ========================================
+      // NEW ROADMAP ID
+      // ========================================
 
-    console.error(
-      "Roadmap error:",
-      error,
-    );
+      const newRoadmapId = getRoadmapId(roadmapWithCareer);
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        role: "ai",
-        text:
-          error?.message ||
-          "Sorry, I couldn't build your learning roadmap.",
-      },
-    ]);
-  } finally {
-    // =======================================================
-    // FINISH LOADING
-    // =======================================================
+      // ========================================
+      // SELECT NEW ROADMAP
+      // ========================================
 
-    setIsLoading(false);
+      setSelectedRoadmapId(newRoadmapId);
 
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
-  }
-};
+      // ========================================
+      // UPDATE ABOUT YOU
+      // ========================================
 
+      setAboutYou((prev) => ({
+        ...prev,
+
+        targetCareer: finalCareer.name,
+
+        targetCareerId: finalCareer.id,
+
+        selectedRoadmap: newRoadmapId,
+      }));
+
+      // ========================================
+      // SAVE ROADMAP TEXT
+      // ========================================
+
+      setRoadmapText(JSON.stringify(roadmapWithCareer, null, 2));
+
+      // ========================================
+      // SUCCESS MESSAGE
+      // ========================================
+
+      setMessages((prev) => [
+        ...prev,
+
+        {
+          id: crypto.randomUUID(),
+
+          role: "ai",
+
+          type: "roadmap",
+
+          text: "Your personalized learning roadmap is ready.",
+        },
+      ]);
+    } catch (error) {
+      console.error("Roadmap error:", error);
+
+      setMessages((prev) => [
+        ...prev,
+
+        {
+          id: crypto.randomUUID(),
+
+          role: "ai",
+
+          text:
+            error?.message || "Sorry, I couldn't build your learning roadmap.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  };
 
   // ==================================================
   // ROADMAP POPUP
@@ -1279,6 +1440,7 @@ const buildLearningRoadmap = async () => {
 
   const openRoadmapPopup = () => {
     setIsRoadmapPopupClosing(false);
+
     setShowRoadmapPopup(true);
   };
 
@@ -1287,20 +1449,32 @@ const buildLearningRoadmap = async () => {
 
     setTimeout(() => {
       setShowRoadmapPopup(false);
+
       setIsRoadmapPopupClosing(false);
     }, 220);
   };
+
+  const selectedRoadmapId212 = roadmaps.find(
+    (roadmap) =>
+      getRoadmapId(roadmap) === String(selectedRoadmapId || "").trim(),
+  );
+
+  const targetCareerId = selectedRoadmapId212?.targetCareerId || null;
 
   // ==================================================
   // MOCK INTERVIEW
   // ==================================================
 
   const startMockInterview = async () => {
-    if (isLoading || isAnalyzingResume) return;
+    if (isLoading || isAnalyzingResume) {
+      return;
+    }
 
     const userMessage = {
       id: crypto.randomUUID(),
+
       role: "user",
+
       text: "Start a mock interview",
     };
 
@@ -1313,14 +1487,17 @@ const buildLearningRoadmap = async () => {
     try {
       const response = await fetch("/api/mock-interview", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           message: "Start a mock interview",
-
+          selectedRoadmapId: targetCareerId,
           history: previousMessages.map((msg) => ({
             role: msg.role,
+
             text: msg.text,
           })),
         }),
@@ -1347,9 +1524,12 @@ const buildLearningRoadmap = async () => {
 
         setMessages((prev) => [
           ...prev,
+
           {
             id: crypto.randomUUID(),
+
             role: "ai",
+
             text:
               data.message ||
               "Please complete your current roadmap stage before starting the mock interview.",
@@ -1364,9 +1544,12 @@ const buildLearningRoadmap = async () => {
 
         setMessages((prev) => [
           ...prev,
+
           {
             id: crypto.randomUUID(),
+
             role: "ai",
+
             text:
               data.message ||
               "Please select a career roadmap before starting a mock interview.",
@@ -1380,9 +1563,12 @@ const buildLearningRoadmap = async () => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text: data.response || "I couldn't start the mock interview.",
         },
       ]);
@@ -1393,9 +1579,12 @@ const buildLearningRoadmap = async () => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text: error.message || "Sorry, I couldn't start the mock interview.",
         },
       ]);
@@ -1413,11 +1602,15 @@ const buildLearningRoadmap = async () => {
   // ==================================================
 
   const sendMockInterviewMessage = async (messageText) => {
-    if (!messageText || isLoading || isAnalyzingResume) return;
+    if (!messageText || isLoading || isAnalyzingResume) {
+      return;
+    }
 
     const userMessage = {
       id: crypto.randomUUID(),
+
       role: "user",
+
       text: messageText,
     };
 
@@ -1426,19 +1619,23 @@ const buildLearningRoadmap = async () => {
     setMessages((prev) => [...prev, userMessage]);
 
     setMessage("");
+
     setIsLoading(true);
 
     try {
       const response = await fetch("/api/mock-interview", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           message: messageText,
 
           history: previousMessages.map((msg) => ({
             role: msg.role,
+
             text: msg.text,
           })),
         }),
@@ -1465,9 +1662,12 @@ const buildLearningRoadmap = async () => {
 
         setMessages((prev) => [
           ...prev,
+
           {
             id: crypto.randomUUID(),
+
             role: "ai",
+
             text:
               data.message ||
               "Please complete your current roadmap stage before continuing.",
@@ -1482,9 +1682,12 @@ const buildLearningRoadmap = async () => {
 
         setMessages((prev) => [
           ...prev,
+
           {
             id: crypto.randomUUID(),
+
             role: "ai",
+
             text:
               data.message ||
               "Please select a career roadmap before continuing.",
@@ -1496,9 +1699,12 @@ const buildLearningRoadmap = async () => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text:
             data.response || "I couldn't generate the next interview question.",
         },
@@ -1508,9 +1714,12 @@ const buildLearningRoadmap = async () => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text:
             error.message || "Sorry, I couldn't process your interview answer.",
         },
@@ -1525,33 +1734,15 @@ const buildLearningRoadmap = async () => {
   };
 
   // ==================================================
-  // NEW RE-CHAT
-  // ==================================================
-
-  const newReChat = () => {
-    const careerPathMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      text: "Find my career path",
-    };
-
-    setMessages([initialMessage, careerPathMessage]);
-
-    setMessage("");
-
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
-  };
-
-  // ==================================================
   // SEND MESSAGE
   // ==================================================
 
   const sendMessage = async (text) => {
     const messageText = (text || message).trim();
 
-    if (!messageText || isLoading || isAnalyzingResume) return;
+    if (!messageText || isLoading || isAnalyzingResume) {
+      return;
+    }
 
     if (isMockInterview) {
       await sendMockInterviewMessage(messageText);
@@ -1561,7 +1752,9 @@ const buildLearningRoadmap = async () => {
 
     const userMessage = {
       id: crypto.randomUUID(),
+
       role: "user",
+
       text: messageText,
     };
 
@@ -1570,19 +1763,23 @@ const buildLearningRoadmap = async () => {
     setMessages((prev) => [...prev, userMessage]);
 
     setMessage("");
+
     setIsLoading(true);
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           message: messageText,
 
           history: previousMessages.map((msg) => ({
             role: msg.role,
+
             text: msg.text,
           })),
 
@@ -1604,9 +1801,12 @@ const buildLearningRoadmap = async () => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text: aiResponse,
         },
       ]);
@@ -1615,9 +1815,12 @@ const buildLearningRoadmap = async () => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text:
             error.message || "Sorry, I couldn't connect to CareerAI right now.",
         },
@@ -1688,7 +1891,9 @@ const buildLearningRoadmap = async () => {
       return;
     }
 
-    if (isAnalyzingResume) return;
+    if (isAnalyzingResume) {
+      return;
+    }
 
     setIsAnalyzingResume(true);
 
@@ -1716,19 +1921,26 @@ const buildLearningRoadmap = async () => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "user",
+
           text: `Analyze my resume for the role: ${targetRole.trim()}`,
         },
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text: aiResponse,
         },
       ]);
 
       setResume(null);
+
       setTargetRole("");
 
       if (fileInputRef.current) {
@@ -1739,9 +1951,12 @@ const buildLearningRoadmap = async () => {
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text: error.message || "Sorry, I couldn't analyze your resume.",
         },
       ]);
@@ -1764,6 +1979,7 @@ const buildLearningRoadmap = async () => {
     setMessage("");
 
     setResume(null);
+
     setTargetRole("");
 
     setSkillGapData({
@@ -1779,14 +1995,19 @@ const buildLearningRoadmap = async () => {
     setIsMockInterview(false);
 
     setShowProfilePopup(false);
+
     setShowSkillGapPopup(false);
+
     setShowRoadmapPopup(false);
+
     setShowAboutYOUPopup(false);
 
     setIsSkillGapPopupClosing(false);
+
     setIsRoadmapPopupClosing(false);
 
     setIsLoading(false);
+
     setIsAnalyzingResume(false);
 
     if (fileInputRef.current) {
@@ -1806,22 +2027,26 @@ const buildLearningRoadmap = async () => {
   // SKILL GAP POPUP
   // ==================================================
 
-const openSkillGapPopup = () => {
-  setSkillGapData({
-    targetRole: aboutYou.targetCareer || "",
-    currentSkills: aboutYou.currentSkills || "",
-    background: aboutYou.background || "",
-  });
+  const openSkillGapPopup = () => {
+    setSkillGapData({
+      targetRole: getDisplayName(aboutYou.targetCareer, ""),
 
-  setIsSkillGapPopupClosing(false);
-  setShowSkillGapPopup(true);
-};
+      currentSkills: aboutYou.currentSkills || "",
+
+      background: aboutYou.background || "",
+    });
+
+    setIsSkillGapPopupClosing(false);
+
+    setShowSkillGapPopup(true);
+  };
 
   const closeSkillGapPopup = () => {
     setIsSkillGapPopupClosing(true);
 
     setTimeout(() => {
       setShowSkillGapPopup(false);
+
       setIsSkillGapPopupClosing(false);
     }, 220);
   };
@@ -1910,9 +2135,11 @@ const openSkillGapPopup = () => {
       } else {
         response = await fetch("/api/chat", {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json",
           },
+
           body: JSON.stringify({
             message: `Analyze my current skill gap for the target career: ${targetRole.trim()}.
 
@@ -1931,12 +2158,10 @@ Please identify:
 
             history: messages.map((msg) => ({
               role: msg.role,
+
               text: msg.text,
             })),
 
-            // FIX:
-            // "profile" did not exist.
-            // Use aboutYou instead.
             aboutYou,
           }),
         });
@@ -1954,14 +2179,20 @@ Please identify:
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "user",
+
           text: `Analyze my skill gap for: ${targetRole.trim()}`,
         },
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text: aiResponse,
         },
       ]);
@@ -1982,9 +2213,12 @@ Please identify:
 
       setMessages((prev) => [
         ...prev,
+
         {
           id: crypto.randomUUID(),
+
           role: "ai",
+
           text: error.message || "Sorry, I couldn't analyze your skill gap.",
         },
       ]);
@@ -2002,40 +2236,42 @@ Please identify:
   // ==================================================
 
   const handleRoadmapsChange = (updatedRoadmaps) => {
-    setRoadmaps(updatedRoadmaps);
+    setRoadmaps(Array.isArray(updatedRoadmaps) ? updatedRoadmaps : []);
 
-    /*
-     * If the currently selected roadmap
-     * still exists, keep everything synchronized.
-     */
-    const selectedRoadmap = updatedRoadmaps.find(
-      (roadmap) => roadmap.id === selectedRoadmapId,
+    const safeRoadmaps = Array.isArray(updatedRoadmaps) ? updatedRoadmaps : [];
+
+    const selectedRoadmap = safeRoadmaps.find(
+      (roadmap) =>
+        getRoadmapId(roadmap) === String(selectedRoadmapId || "").trim(),
     );
 
     if (!selectedRoadmap) {
       return;
     }
 
-    const career = normalizeCareer(
-      selectedRoadmap.targetCareer ||
-        selectedRoadmap.career ||
-        selectedRoadmap.title ||
-        selectedRoadmap.name,
-      selectedRoadmap.id,
-    );
+    const roadmapId = getRoadmapId(selectedRoadmap);
+
+    const career = getRoadmapCareer(selectedRoadmap);
 
     setAboutYou((prev) => ({
       ...prev,
-      targetCareer:
-        career.name || selectedRoadmap.name || selectedRoadmap.title || "",
-      targetCareerId: selectedRoadmap.id,
-      selectedRoadmap: selectedRoadmap.id,
+
+      targetCareer: career.name || "",
+
+      targetCareerId: career.id || roadmapId,
+
+      selectedRoadmap: roadmapId,
     }));
   };
 
   // ==================================================
   // UI
   // ==================================================
+
+  const selectedRoadmap = roadmaps.find(
+    (roadmap) =>
+      getRoadmapId(roadmap) === String(selectedRoadmapId || "").trim(),
+  );
 
   return (
     <div className="h-screen min-h-0 overflow-hidden bg-[#070707] text-zinc-100">
@@ -2099,7 +2335,9 @@ Please identify:
         <RoadmapSidebar
           roadmaps={roadmaps}
           selectedRoadmapId={selectedRoadmapId}
+          selectedRoadmap={selectedRoadmap}
           onRoadmapSelect={handleRoadmapSelect}
+          profile={aboutYou}
           onRoadmapsChange={handleRoadmapsChange}
           onTopicSelect={(topicName) => {
             sendMessage(topicName);

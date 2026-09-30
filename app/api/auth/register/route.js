@@ -17,7 +17,6 @@ export async function POST(request) {
       email,
       password,
       confirmPassword,
-      terms,
     } = body;
 
     // ==========================================
@@ -35,21 +34,6 @@ export async function POST(request) {
         {
           success: false,
           error: "All fields are required.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // ==========================================
-    // TERMS
-    // ==========================================
-
-    if (!terms) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "You must accept the Terms of Service and Privacy Policy.",
         },
         { status: 400 }
       );
@@ -77,8 +61,7 @@ export async function POST(request) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Password must be at least 8 characters.",
+          error: "Password must be at least 8 characters.",
         },
         { status: 400 }
       );
@@ -108,15 +91,13 @@ export async function POST(request) {
     // VALIDATE EMAIL
     // ==========================================
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(normalizedEmail)) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Please enter a valid email address.",
+          error: "Please enter a valid email address.",
         },
         { status: 400 }
       );
@@ -132,8 +113,7 @@ export async function POST(request) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Please enter a valid date of birth.",
+          error: "Please enter a valid date of birth.",
         },
         { status: 400 }
       );
@@ -163,8 +143,7 @@ export async function POST(request) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "An account with this email already exists.",
+          error: "An account with this email already exists.",
         },
         { status: 409 }
       );
@@ -193,17 +172,11 @@ export async function POST(request) {
 
     const newUser = {
       userId,
-
       name: trimmedName,
-
       dob: dobDate,
-
       email: normalizedEmail,
-
       password: hashedPassword,
-
       createdAt: now,
-
       updatedAt: now,
     };
 
@@ -211,8 +184,7 @@ export async function POST(request) {
     // INSERT USER
     // ==========================================
 
-    const result =
-      await users.insertOne(newUser);
+    const result = await users.insertOne(newUser);
 
     // ==========================================
     // SUCCESS
@@ -221,32 +193,22 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: true,
-
-        message:
-          "Account created successfully.",
-
+        message: "Account created successfully.",
         user: {
           userId,
-
           id: result.insertedId.toString(),
-
           name: trimmedName,
-
           email: normalizedEmail,
         },
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error(
-      "REGISTRATION ERROR:",
-      error
-    );
+    console.error("REGISTRATION ERROR:", error);
 
     return NextResponse.json(
       {
         success: false,
-
         error:
           process.env.NODE_ENV === "development"
             ? error.message
@@ -256,4 +218,3 @@ export async function POST(request) {
     );
   }
 }
-

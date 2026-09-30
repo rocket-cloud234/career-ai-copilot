@@ -16,7 +16,6 @@ export default function SignupPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    terms: false,
   });
 
   const [loading, setLoading] = useState(false);
@@ -28,11 +27,11 @@ export default function SignupPage() {
   // -----------------------------------------
 
   function handleChange(e) {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
 
     setForm((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: value,
     }));
 
     setError("");
@@ -49,18 +48,15 @@ export default function SignupPage() {
     setError("");
     setSuccess("");
 
+    // Check password match
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
+    // Check minimum password length
     if (form.password.length < 8) {
       setError("Password must be at least 8 characters.");
-      return;
-    }
-
-    if (!form.terms) {
-      setError("Please accept the Terms of Service and Privacy Policy.");
       return;
     }
 
@@ -250,6 +246,8 @@ export default function SignupPage() {
                       transition
                       focus:border-[#555]
                       focus:bg-[#171717]
+                      [&::-ms-reveal]:hidden
+                      [&::-ms-clear]:hidden
                     "
                   />
 
@@ -301,6 +299,8 @@ export default function SignupPage() {
                       transition
                       focus:border-[#555]
                       focus:bg-[#171717]
+                      [&::-ms-reveal]:hidden
+                      [&::-ms-clear]:hidden
                     "
                   />
 
@@ -338,43 +338,6 @@ export default function SignupPage() {
               </div>
             )}
 
-            {/* Terms */}
-            <div className="flex items-start gap-2 pt-1">
-              <input
-                id="terms"
-                name="terms"
-                type="checkbox"
-                checked={form.terms}
-                onChange={handleChange}
-                required
-                className="w-4 h-4 mt-0.5 accent-white shrink-0"
-              />
-
-              <label
-                htmlFor="terms"
-                className="text-xs leading-5 text-[#777]"
-              >
-                I agree to the{" "}
-
-                <Link
-                  href="/terms"
-                  className="text-[#bbb] hover:text-white hover:underline"
-                >
-                  Terms of Service
-                </Link>{" "}
-
-                and{" "}
-
-                <Link
-                  href="/privacy"
-                  className="text-[#bbb] hover:text-white hover:underline"
-                >
-                  Privacy Policy
-                </Link>
-                .
-              </label>
-            </div>
-
             {/* Create Account */}
             <button
               type="submit"
@@ -395,6 +358,7 @@ export default function SignupPage() {
             >
               {loading ? "Creating account..." : "Create account"}
             </button>
+
           </form>
 
           {/* Divider */}
@@ -419,6 +383,7 @@ export default function SignupPage() {
               Sign in
             </Link>
           </p>
+
         </div>
 
         {/* Footer */}

@@ -1,9 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
-import fs from "fs";
-import path from "path";
+import OpenAI from "openai";
+import clientPromise from "../../lib/mongodb";
+import { getAuthUser } from "../../lib/auth";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request) {
@@ -14,16 +14,22 @@ export async function POST(request) {
 
     const body = await request.json();
 
-    const message = body?.message;
-    const history = body?.history || [];
+    const message = String(
+      body?.message || ""
+    ).trim();
+
+    const history = Array.isArray(body?.history)
+      ? body.history
+      : [];
 
     // ==========================================
     // BASIC VALIDATION
     // ==========================================
 
-    if (!message || !message.trim()) {
+    if (!message) {
       return Response.json(
         {
+          success: false,
           error: "Message is required",
         },
         {
@@ -32,12 +38,16 @@ export async function POST(request) {
       );
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      console.error("GEMINI_API_KEY is missing");
+    if (!process.env.OPENAI_API_KEY) {
+      console.error(
+        "OPENAI_API_KEY is missing"
+      );
 
       return Response.json(
         {
-          error: "GEMINI_API_KEY is not configured.",
+          success: false,
+          error:
+            "OPENAI_API_KEY is not configured.",
         },
         {
           status: 500,
@@ -46,43 +56,109 @@ export async function POST(request) {
     }
 
     // ==========================================
-    // LOAD USER DATABASE
+    // AUTHENTICATION
     // ==========================================
 
-    const userFilePath = path.join(
-      process.cwd(),
-      "data",
-      "database.json"
-    );
+    const authUser =
+      await getAuthUser(request);
 
-    if (!fs.existsSync(userFilePath)) {
+    if (!authUser) {
       return Response.json(
         {
-          error: "User database file not found.",
+          success: false,
+          error:
+            "Unauthorized. Please log in.",
         },
         {
-          status: 500,
+          status: 401,
         }
       );
     }
 
-    const userFileData = fs.readFileSync(
-      userFilePath,
-      "utf-8"
+    // ==========================================
+    // GET AUTHENTICATED USER ID
+    // ==========================================
+
+    const userId = String(
+      authUser.userId || ""
+    ).trim();
+
+    if (!userId) {
+      return Response.json(
+        {
+          success: false,
+          error:
+            "Invalid authenticated user.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    // ==========================================
+    // DEBUG LOG
+    // ==========================================
+
+    console.log(
+      "=========================================="
     );
 
-    const database = JSON.parse(userFileData);
+    console.log(
+      "MOCK INTERVIEW REQUEST"
+    );
+
+    console.log(
+      "Authenticated User ID:",
+      userId
+    );
+
+    console.log(
+      "=========================================="
+    );
 
     // ==========================================
-    // GET USER
+    // CONNECT TO MONGODB
     // ==========================================
 
-    const user = database.user?.[0];
+    const client =
+      await clientPromise;
+
+    const db = client.db(
+      process.env.MONGODB_DB ||
+        "careerai"
+    );
+
+    // ==========================================
+    // COLLECTIONS
+    // ==========================================
+
+    const usersCollection =
+      db.collection("users");
+
+    const roadmapsCollection =
+      db.collection("roadmaps");
+
+    // ==========================================
+    // GET CURRENT USER FROM MONGODB
+    // ==========================================
+
+    const user =
+      await usersCollection.findOne({
+        userId,
+      });
 
     if (!user) {
+      console.error(
+        "User not found:",
+        userId
+      );
+
       return Response.json(
         {
-          error: "User profile not found.",
+          success: false,
+          error:
+            "User profile not found.",
         },
         {
           status: 404,
@@ -98,84 +174,116 @@ export async function POST(request) {
       user.name || "Candidate"
     ).trim();
 
-    const age = user.age || "Not provided";
+    const age =
+      user.age ||
+      user.dob ||
+      "Not provided";
 
     const interests = String(
-      user.Interests || ""
+      user.Interests ||
+        user.interests ||
+        ""
     ).trim();
 
     const currentSkills = String(
-      user["Current Skills"] || ""
+      user["Current Skills"] ||
+        user.currentSkills ||
+        ""
     ).trim();
 
     const background = String(
-      user.Background || ""
+      user.Background ||
+        user.background ||
+        ""
     ).trim();
 
     const targetCareer = String(
-      user["Target career"] || ""
+      user["Target career"] ||
+        user.targetCareer ||
+        ""
     ).trim();
 
     // ==========================================
-    // GET SELECTED ROADMAP
+    // DEBUG ROADMAP
     // ==========================================
-
-    const selectedRoadmapId = String(
-      user["Selected Roadmap"] || ""
-    ).trim();
-
-    if (!selectedRoadmapId) {
-      return Response.json({
-        response: "NO_SELECTED_ROADMAP",
-        message:
-          "You need to select a career roadmap before starting a mock interview.",
-      });
-    }
-
+    //
+    // FOR DEBUGGING ONLY
+    //
+    // The roadmap ID is intentionally hardcoded.
+    //
+    // Later, replace this with the user's
+    // selected roadmap ID from MongoDB.
+    //
     // ==========================================
-    // LOAD ROADMAP DATABASE
-    // ==========================================
+const selectedRoadmapId = String(
+  body?.selectedRoadmapId || ""
+).trim();
 
-    const roadmapFilePath = path.join(
-      process.cwd(),
-      "data",
-      "roadmaps.json"
+    console.log(
+      "========== DEBUG ROADMAP =========="
     );
 
-    if (!fs.existsSync(roadmapFilePath)) {
-      return Response.json(
-        {
-          error: "Roadmap database file not found.",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    const roadmapFileData = fs.readFileSync(
-      roadmapFilePath,
-      "utf-8"
+    console.log(
+      "User ID:",
+      userId
     );
 
-    const roadmapDatabase =
-      JSON.parse(roadmapFileData);
+    console.log(
+      "Selected Roadmap ID:",
+      selectedRoadmapId
+    );
+
+    console.log(
+      "==================================="
+    );
 
     // ==========================================
-    // FIND SELECTED ROADMAP
+    // FIND ROADMAP FOR THIS USER
     // ==========================================
 
     const selectedRoadmap =
-      roadmapDatabase.roadmaps?.find(
-        (roadmap) =>
-          roadmap.id === selectedRoadmapId
-      );
+      await roadmapsCollection.findOne({
+        userId,
+
+        $or: [
+          {
+            roadmapId:
+              selectedRoadmapId,
+          },
+          {
+            id:
+              selectedRoadmapId,
+          },
+        ],
+      });
+
+    // ==========================================
+    // ROADMAP NOT FOUND
+    // ==========================================
 
     if (!selectedRoadmap) {
+      console.error(
+        "Roadmap not found for user:",
+        {
+          userId,
+          selectedRoadmapId,
+        }
+      );
+
       return Response.json(
         {
+          success: false,
+
+          response:
+            "ROADMAP_NOT_FOUND",
+
           error:
-            "Selected roadmap was not found.",
+            "The selected roadmap was not found for this user.",
+
+          roadmapId:
+            selectedRoadmapId,
+
+          userId,
         },
         {
           status: 404,
@@ -184,34 +292,61 @@ export async function POST(request) {
     }
 
     // ==========================================
-    // CHECK STAGES
-    // ==========================================
-    //
-    // IMPORTANT LOGIC:
-    //
-    // Stage 1 incomplete
-    //     ↓
-    // No interview
-    //
-    // Stage 1 complete
-    //     ↓
-    // Interview Stage 1
-    //
-    // Stage 1 + Stage 2 complete
-    //     ↓
-    // Interview Stage 1 + Stage 2
-    //
-    // Stage 1 + Stage 2 + Stage 3 complete
-    //     ↓
-    // Interview Stage 1 + Stage 2 + Stage 3
-    //
+    // NORMALIZE ROADMAP ID
     // ==========================================
 
-    const stages =
-      selectedRoadmap.stages || [];
+    const roadmapId = String(
+      selectedRoadmap.roadmapId ||
+        selectedRoadmap.id ||
+        selectedRoadmapId
+    ).trim();
 
     // ==========================================
-    // MAKE SURE STAGE 1 EXISTS
+    // GET ROADMAP DATA
+    // ==========================================
+
+    const roadmapTopic = String(
+      selectedRoadmap.topic || ""
+    ).trim();
+
+    const roadmapTargetCareer =
+      String(
+        selectedRoadmap.targetCareer ||
+          targetCareer ||
+          ""
+      ).trim();
+
+    const roadmapTargetCareerId =
+      String(
+        selectedRoadmap.targetCareerId ||
+          ""
+      ).trim();
+
+    // ==========================================
+    // GET STAGES
+    // ==========================================
+
+    const stages = Array.isArray(
+      selectedRoadmap.stages
+    )
+      ? selectedRoadmap.stages
+      : [];
+
+    if (stages.length === 0) {
+      return Response.json(
+        {
+          success: false,
+          error:
+            "The selected roadmap does not contain any stages.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    // ==========================================
+    // FIRST STAGE
     // ==========================================
 
     const firstStage = stages[0];
@@ -219,8 +354,9 @@ export async function POST(request) {
     if (!firstStage) {
       return Response.json(
         {
+          success: false,
           error:
-            "The selected roadmap does not contain any stages.",
+            "The selected roadmap does not contain a first stage.",
         },
         {
           status: 500,
@@ -232,104 +368,139 @@ export async function POST(request) {
     // STAGE 1 MUST BE COMPLETED
     // ==========================================
 
-    if (firstStage.completed !== true) {
-      return Response.json({
-        response: "STUDY_CURRENT_STAGE",
+    if (
+      firstStage.completed !== true
+    ) {
+      return Response.json(
+        {
+          success: true,
 
-        message:
-          `You need to complete "${firstStage.title}" before starting the mock interview.`,
+          response:
+            "STUDY_CURRENT_STAGE",
 
-        stage: {
-          id: firstStage.id,
-          title: firstStage.title,
+          message:
+            `You need to complete "${firstStage.title}" before starting the mock interview.`,
+
+          stage: {
+            id:
+              firstStage.id ??
+              1,
+
+            title:
+              firstStage.title ||
+              "",
+          },
         },
-      });
+        {
+          status: 200,
+        }
+      );
     }
 
     // ==========================================
     // GET ALL COMPLETED STAGES
     // ==========================================
-    //
-    // Only completed stages are allowed inside
-    // the interview.
-    //
-    // We intentionally DO NOT send incomplete
-    // stages to Gemini.
-    //
-    // ==========================================
 
     const completedStages =
       stages.filter(
         (stage) =>
+          stage &&
           stage.completed === true
       );
 
     // ==========================================
-    // CREATE INTERVIEW STAGE DATA
+    // BUILD INTERVIEW STAGES
     // ==========================================
 
     const interviewStages =
       completedStages.map(
-        (stage) => {
+        (stage, stageIndex) => {
           const topics =
-            stage.topics || [];
+            Array.isArray(
+              stage.topics
+            )
+              ? stage.topics
+              : [];
+
+          const cleanedTopics =
+            topics
+              .map((topic) => {
+                if (
+                  typeof topic ===
+                  "string"
+                ) {
+                  return topic.trim();
+                }
+
+                return String(
+                  topic?.name || ""
+                ).trim();
+              })
+              .filter(Boolean);
 
           return {
-            id: stage.id,
+            id:
+              stage.id ??
+              stageIndex + 1,
 
-            title: stage.title,
+            title:
+              String(
+                stage.title || ""
+              ).trim(),
 
             topics:
-              topics
-                .map(
-                  (topic) =>
-                    topic?.name
-                )
-                .filter(Boolean),
+              cleanedTopics,
           };
         }
       );
 
     // ==========================================
-    // MAKE SURE THERE ARE TOPICS
+    // COUNT INTERVIEW TOPICS
     // ==========================================
 
     const totalInterviewTopics =
       interviewStages.reduce(
         (total, stage) =>
-          total + stage.topics.length,
+          total +
+          stage.topics.length,
         0
       );
 
-    if (totalInterviewTopics === 0) {
-      return Response.json({
-        response:
-          "STUDY_CURRENT_STAGE",
+    // ==========================================
+    // NO TOPICS
+    // ==========================================
 
-        message:
-          `Complete the topics in "${firstStage.title}" before starting the mock interview.`,
+    if (
+      totalInterviewTopics === 0
+    ) {
+      return Response.json(
+        {
+          success: true,
 
-        stage: {
-          id: firstStage.id,
-          title: firstStage.title,
+          response:
+            "STUDY_CURRENT_STAGE",
+
+          message:
+            `Complete the topics in "${firstStage.title}" before starting the mock interview.`,
+
+          stage: {
+            id:
+              firstStage.id ??
+              1,
+
+            title:
+              firstStage.title ||
+              "",
+          },
         },
-      });
+        {
+          status: 200,
+        }
+      );
     }
 
     // ==========================================
     // CREATE INTERVIEW SCOPE
-    // ==========================================
-    //
-    // This is the ONLY roadmap information that
-    // will be sent to Gemini.
-    //
-    // Example:
-    //
-    // Stage 1 completed
-    // Stage 2 incomplete
-    //
-    // Gemini receives ONLY Stage 1.
-    //
     // ==========================================
 
     const interviewScope =
@@ -357,14 +528,13 @@ ${stage.topics
       history
         .map((msg) => {
           const role =
-            msg.role === "user"
+            msg?.role === "user"
               ? "Candidate"
               : "Interviewer";
 
-          const text =
-            String(
-              msg.text || ""
-            ).trim();
+          const text = String(
+            msg?.text || ""
+          ).trim();
 
           if (!text) {
             return null;
@@ -396,7 +566,7 @@ Background:
 ${background || "Not provided"}
 
 Target Career:
-${targetCareer || "Not provided"}
+${roadmapTargetCareer || "Not provided"}
 `;
 
     // ==========================================
@@ -435,17 +605,6 @@ The interview is CUMULATIVE.
 
 You may ask questions from ALL completed stages.
 
-For example:
-
-If Stage 1 is completed:
-→ Ask from Stage 1.
-
-If Stage 1 and Stage 2 are completed:
-→ Ask from Stage 1 AND Stage 2.
-
-If Stage 1, Stage 2 and Stage 3 are completed:
-→ Ask from Stage 1, Stage 2 AND Stage 3.
-
 However:
 
 NEVER ask questions from a stage that is not included
@@ -460,22 +619,16 @@ Do not assume the candidate has studied future stages.
 QUESTION SELECTION
 ==========================================
 
-You should intelligently select questions from the
-completed topics.
+Select questions intelligently from the completed topics.
 
 Do not ask the exact same question repeatedly.
 
 Use the previous conversation to understand what has
 already been tested.
 
-Try to cover different topics over the course of the
-interview.
+Try to cover different topics throughout the interview.
 
 You may mix questions from different completed stages.
-
-For example, if Stage 1 and Stage 2 are completed,
-one question could be from Stage 1 and the next could
-be from Stage 2.
 
 ==========================================
 INTERVIEW DIFFICULTY
@@ -483,9 +636,8 @@ INTERVIEW DIFFICULTY
 
 Start with basic questions.
 
-If the candidate answers correctly:
-
-Gradually increase difficulty.
+If the candidate answers correctly, gradually increase
+difficulty.
 
 You can use:
 
@@ -493,13 +645,13 @@ You can use:
 - Practical questions
 - Scenario-based questions
 - Debugging questions
-- "Why" questions
+- Why questions
 - Comparison questions
 - Small coding questions when appropriate
 - Real-world development situations
 
-However, every question MUST be related to a topic
-inside the completed interview scope.
+Every question MUST be related to a topic inside the
+completed interview scope.
 
 ==========================================
 ANSWER EVALUATION
@@ -538,8 +690,7 @@ INTERVIEW RULES
 
 6. Keep the interview realistic.
 
-7. Personalize the difficulty based on the candidate's
-previous answers.
+7. Personalize difficulty based on previous answers.
 
 8. Use conversation history to avoid unnecessary repetition.
 
@@ -555,7 +706,7 @@ previous answers.
 
 14. Do not tell the candidate which hidden data you received.
 
-15. Do not fabricate the candidate's previous answers.
+15. Do not fabricate previous answers.
 
 ==========================================
 BEGINNING OF INTERVIEW
@@ -565,10 +716,8 @@ If there is no previous interview conversation:
 
 Briefly introduce yourself as the interviewer.
 
-Then ask exactly ONE question from the completed
-roadmap topics.
-
-Do not ask about topics that are not completed.
+Then ask exactly ONE question from the completed roadmap
+topics.
 
 ==========================================
 CONTINUING THE INTERVIEW
@@ -580,8 +729,7 @@ First give a short evaluation.
 
 Then ask exactly ONE new question.
 
-Choose a topic that has not been tested recently
-when possible.
+Choose a topic that has not been tested recently when possible.
 
 ==========================================
 PREVIOUS INTERVIEW
@@ -611,9 +759,8 @@ and ask ONE new question.
 NEVER ask more than one question.
 
 NEVER leave the completed interview scope.
-
 `;
-    
+
     // ==========================================
     // LOGGING
     // ==========================================
@@ -623,18 +770,33 @@ NEVER leave the completed interview scope.
     );
 
     console.log(
+      "User ID:",
+      userId
+    );
+
+    console.log(
       "Candidate:",
       name
     );
 
     console.log(
       "Selected Roadmap:",
-      selectedRoadmap.id
+      roadmapId
     );
 
     console.log(
       "Roadmap Topic:",
-      selectedRoadmap.topic
+      roadmapTopic
+    );
+
+    console.log(
+      "Target Career:",
+      roadmapTargetCareer
+    );
+
+    console.log(
+      "Target Career ID:",
+      roadmapTargetCareerId
     );
 
     console.log(
@@ -655,14 +817,41 @@ NEVER leave the completed interview scope.
     );
 
     // ==========================================
-    // CALL GEMINI
+    // CALL OPENAI
     // ==========================================
 
     const response =
-      await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
+      await openai.responses.create({
+        model: "gpt-5.4-mini",
+
+        input: [
+          {
+            role: "system",
+
+            content:
+              "You are CareerAI, a professional technical interviewer. Follow the interview instructions exactly.",
+          },
+
+          {
+            role: "user",
+
+            content: prompt,
+          },
+        ],
       });
+
+    // ==========================================
+    // GET OPENAI RESPONSE
+    // ==========================================
+
+    const responseText =
+      response.output_text?.trim();
+
+    if (!responseText) {
+      throw new Error(
+        "OpenAI returned an empty response."
+      );
+    }
 
     console.log(
       "Mock interview response received."
@@ -672,26 +861,38 @@ NEVER leave the completed interview scope.
     // RETURN RESPONSE
     // ==========================================
 
-    return Response.json({
-      response: response.text,
+    return Response.json(
+      {
+        success: true,
 
-      interview: {
-        roadmapId:
-          selectedRoadmap.id,
+        response: responseText,
 
-        roadmapTopic:
-          selectedRoadmap.topic,
+        interview: {
+          userId,
 
-        completedStages:
-          interviewStages.map(
-            (stage) => ({
-              id: stage.id,
-              title: stage.title,
-            })
-          ),
+          roadmapId,
+
+          roadmapTopic,
+
+          targetCareer:
+            roadmapTargetCareer,
+
+          targetCareerId:
+            roadmapTargetCareerId,
+
+          completedStages:
+            interviewStages.map(
+              (stage) => ({
+                id: stage.id,
+                title: stage.title,
+              })
+            ),
+        },
       },
-    });
-
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
     // ==========================================
     // ERROR HANDLING
@@ -709,6 +910,8 @@ NEVER leave the completed interview scope.
 
     return Response.json(
       {
+        success: false,
+
         error:
           error?.message ||
           "Failed to generate mock interview response.",
@@ -719,4 +922,3 @@ NEVER leave the completed interview scope.
     );
   }
 }
-
