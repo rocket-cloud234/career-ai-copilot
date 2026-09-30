@@ -1,18 +1,18 @@
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 
 // =========================================================
-// GEMINI SETUP
+// OPENAI SETUP
 // =========================================================
 
-const apiKey = process.env.GEMINI_API_KEY;
+const apiKey = process.env.OPENAI_API_KEY;
 
-const ai = apiKey
-  ? new GoogleGenAI({
+const openai = apiKey
+  ? new OpenAI({
       apiKey,
     })
   : null;
 
-const MODEL = "gemini-3.6-flash";
+const MODEL = "gpt-5.4-mini";
 const CAREER_PATH_MARKER = "UK41Z_CAREER_PATH_INPUT";
 
 // =========================================================
@@ -32,9 +32,13 @@ function errorMessage(error) {
     error?.message ||
     error?.error?.message ||
     error?.details?.[0]?.message ||
-    "Unknown Gemini API error"
+    "Unknown OpenAI API error"
   );
 }
+
+// =========================================================
+// CLEAN CAREER ID
+// =========================================================
 
 function cleanCareerId(id) {
   return String(id || "")
@@ -46,11 +50,19 @@ function cleanCareerId(id) {
     .replace(/^-+|-+$/g, "");
 }
 
+// =========================================================
+// CLEAN TEXT
+// =========================================================
+
 function cleanText(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
     .trim();
 }
+
+// =========================================================
+// EXTRACT JSON
+// =========================================================
 
 function extractJson(text) {
   if (!text || typeof text !== "string") {
@@ -59,7 +71,7 @@ function extractJson(text) {
 
   let cleaned = text.trim();
 
-  // Remove ```json ... ``` if Gemini returns markdown
+  // Remove markdown code fences if returned
   cleaned = cleaned
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
@@ -67,15 +79,29 @@ function extractJson(text) {
     .trim();
 
   // Find JSON object
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
+  const firstBrace =
+    cleaned.indexOf("{");
 
-  if (firstBrace === -1 || lastBrace === -1) {
+  const lastBrace =
+    cleaned.lastIndexOf("}");
+
+  if (
+    firstBrace === -1 ||
+    lastBrace === -1 ||
+    lastBrace <= firstBrace
+  ) {
     return null;
   }
 
-  return cleaned.slice(firstBrace, lastBrace + 1);
+  return cleaned.slice(
+    firstBrace,
+    lastBrace + 1
+  );
 }
+
+// =========================================================
+// NORMALIZE CAREER PATHS
+// =========================================================
 
 function normalizeCareerPaths(options) {
   if (!Array.isArray(options)) {
@@ -86,15 +112,31 @@ function normalizeCareerPaths(options) {
   const usedIds = new Set();
 
   for (const item of options) {
-    if (!item || typeof item !== "object") {
+    if (
+      !item ||
+      typeof item !== "object" ||
+      Array.isArray(item)
+    ) {
       continue;
     }
 
-    const id = cleanCareerId(item.id);
-    const title = cleanText(item.title);
-    const description = cleanText(item.description);
+    const id = cleanCareerId(
+      item.id
+    );
 
-    if (!id || !title || !description) {
+    const title = cleanText(
+      item.title
+    );
+
+    const description = cleanText(
+      item.description
+    );
+
+    if (
+      !id ||
+      !title ||
+      !description
+    ) {
       continue;
     }
 
@@ -130,12 +172,15 @@ export async function POST(request) {
     // =======================================================
 
     if (!apiKey) {
-      console.error("GEMINI_API_KEY is missing.");
+      console.error(
+        "OPENAI_API_KEY is missing."
+      );
 
       return Response.json(
         {
           success: false,
-          error: "GEMINI_API_KEY is not configured.",
+          error:
+            "OPENAI_API_KEY is not configured.",
         },
         {
           status: 500,
@@ -143,13 +188,16 @@ export async function POST(request) {
       );
     }
 
-    if (!ai) {
-      console.error("Gemini client was not initialized.");
+    if (!openai) {
+      console.error(
+        "OpenAI client was not initialized."
+      );
 
       return Response.json(
         {
           success: false,
-          error: "Gemini client is not initialized.",
+          error:
+            "OpenAI client is not initialized.",
         },
         {
           status: 500,
@@ -166,13 +214,17 @@ export async function POST(request) {
     try {
       body = await request.json();
     } catch (error) {
-      console.error("Failed to parse request JSON.");
+      console.error(
+        "Failed to parse request JSON."
+      );
+
       console.error(error);
 
       return Response.json(
         {
           success: false,
-          error: "Invalid JSON request body.",
+          error:
+            "Invalid JSON request body.",
         },
         {
           status: 400,
@@ -184,18 +236,24 @@ export async function POST(request) {
     // GET MESSAGE
     // =======================================================
 
-    const originalMessage = body?.message;
+    const originalMessage =
+      body?.message;
 
     if (
-      typeof originalMessage !== "string" ||
+      typeof originalMessage !==
+        "string" ||
       !originalMessage.trim()
     ) {
-      console.error("Invalid message:", originalMessage);
+      console.error(
+        "Invalid message:",
+        originalMessage
+      );
 
       return Response.json(
         {
           success: false,
-          error: "A valid career guidance message is required.",
+          error:
+            "A valid career guidance message is required.",
         },
         {
           status: 400,
@@ -207,17 +265,27 @@ export async function POST(request) {
     // REMOVE INTERNAL MARKER
     // =======================================================
 
-    const cleanMessage = originalMessage
-      .replace(new RegExp(CAREER_PATH_MARKER, "g"), "")
-      .trim();
+    const cleanMessage =
+      originalMessage
+        .replace(
+          new RegExp(
+            CAREER_PATH_MARKER,
+            "g"
+          ),
+          ""
+        )
+        .trim();
 
     if (!cleanMessage) {
-      console.error("Career message became empty after marker removal.");
+      console.error(
+        "Career message became empty after marker removal."
+      );
 
       return Response.json(
         {
           success: false,
-          error: "Career guidance message is empty.",
+          error:
+            "Career guidance message is empty.",
         },
         {
           status: 400,
@@ -225,9 +293,18 @@ export async function POST(request) {
       );
     }
 
-    console.log("Model:", MODEL);
-    console.log("Career message:");
-    console.log(cleanMessage);
+    console.log(
+      "Model:",
+      MODEL
+    );
+
+    console.log(
+      "Career message:"
+    );
+
+    console.log(
+      cleanMessage
+    );
 
     // =======================================================
     // PROMPT
@@ -295,7 +372,7 @@ RULES:
    - be exactly one short sentence
    - clearly describe what the career involves
    - avoid unnecessary motivation
-   - avoid mentioning that the career is "perfect"
+   - avoid saying that the career is "perfect"
 
 7. Prefer careers explicitly recommended in the user's message.
 
@@ -313,39 +390,89 @@ ${cleanMessage}
 `;
 
     // =======================================================
-    // CALL GEMINI
+    // CALL OPENAI
     // =======================================================
 
     console.log("");
-    console.log("Sending request to Gemini...");
-    console.log("Model:", MODEL);
+    console.log(
+      "Sending request to OpenAI..."
+    );
+
+    console.log(
+      "Model:",
+      MODEL
+    );
 
     let result;
 
     try {
-      result = await ai.models.generateContent({
-        model: MODEL,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        },
-      });
-    } catch (geminiError) {
-      console.error("");
-      console.error("========================================");
-      console.error("GEMINI API ERROR");
-      console.error("========================================");
+      result =
+        await openai.chat.completions.create({
+          model: MODEL,
 
-      console.error("Name:", geminiError?.name);
-      console.error("Message:", geminiError?.message);
-      console.error("Status:", geminiError?.status);
-      console.error("Code:", geminiError?.code);
-      console.error("Error:", geminiError);
+          messages: [
+            {
+              role: "system",
+
+              content:
+                "You are CareerAI's career-path extraction system. Return only the requested JSON object. Do not return markdown or explanatory text.",
+            },
+
+            {
+              role: "user",
+
+              content: prompt,
+            },
+          ],
+
+          response_format: {
+            type: "json_object",
+          },
+        });
+    } catch (openaiError) {
+      console.error("");
+      console.error(
+        "========================================"
+      );
+      console.error(
+        "OPENAI API ERROR"
+      );
+      console.error(
+        "========================================"
+      );
+
+      console.error(
+        "Name:",
+        openaiError?.name
+      );
+
+      console.error(
+        "Message:",
+        openaiError?.message
+      );
+
+      console.error(
+        "Status:",
+        openaiError?.status
+      );
+
+      console.error(
+        "Code:",
+        openaiError?.code
+      );
+
+      console.error(
+        "Error:",
+        openaiError
+      );
 
       return Response.json(
         {
           success: false,
-          error: errorMessage(geminiError),
+          error:
+            errorMessage(
+              openaiError
+            ),
         },
         {
           status: 500,
@@ -354,30 +481,36 @@ ${cleanMessage}
     }
 
     // =======================================================
-    // GET GEMINI TEXT
+    // GET OPENAI TEXT
     // =======================================================
 
     let text = "";
 
     try {
-      // Current @google/genai response
-      if (typeof result?.text === "string") {
-        text = result.text.trim();
-      }
-
-      // Fallback for alternate response structure
-      if (!text && typeof result?.response?.text === "function") {
-        text = result.response.text().trim();
-      }
+      text =
+        result?.choices?.[0]
+          ?.message?.content
+          ?.trim() || "";
     } catch (error) {
-      console.error("Could not read Gemini response text.");
+      console.error(
+        "Could not read OpenAI response text."
+      );
+
       console.error(error);
     }
 
     console.log("");
-    console.log("========================================");
-    console.log("GEMINI RESPONSE");
-    console.log("========================================");
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      "OPENAI RESPONSE"
+    );
+
+    console.log(
+      "========================================"
+    );
 
     console.log(text);
 
@@ -386,12 +519,15 @@ ${cleanMessage}
     // =======================================================
 
     if (!text) {
-      console.error("Gemini returned an empty response.");
+      console.error(
+        "OpenAI returned an empty response."
+      );
 
       return Response.json(
         {
           success: false,
-          error: "Gemini returned an empty response.",
+          error:
+            "OpenAI returned an empty response.",
         },
         {
           status: 500,
@@ -403,21 +539,34 @@ ${cleanMessage}
     // EXTRACT JSON
     // =======================================================
 
-    const jsonText = extractJson(text);
+    const jsonText =
+      extractJson(text);
 
     if (!jsonText) {
       console.error("");
-      console.error("========================================");
-      console.error("JSON EXTRACTION FAILED");
-      console.error("========================================");
+      console.error(
+        "========================================"
+      );
 
-      console.error("Raw Gemini response:");
+      console.error(
+        "JSON EXTRACTION FAILED"
+      );
+
+      console.error(
+        "========================================"
+      );
+
+      console.error(
+        "Raw OpenAI response:"
+      );
+
       console.error(text);
 
       return Response.json(
         {
           success: false,
-          error: "Gemini did not return a valid JSON object.",
+          error:
+            "OpenAI did not return a valid JSON object.",
         },
         {
           status: 500,
@@ -432,26 +581,45 @@ ${cleanMessage}
     let parsed;
 
     try {
-      parsed = JSON.parse(jsonText);
+      parsed =
+        JSON.parse(jsonText);
     } catch (parseError) {
       console.error("");
-      console.error("========================================");
-      console.error("JSON PARSE ERROR");
-      console.error("========================================");
+      console.error(
+        "========================================"
+      );
 
-      console.error("Raw response:");
+      console.error(
+        "JSON PARSE ERROR"
+      );
+
+      console.error(
+        "========================================"
+      );
+
+      console.error(
+        "Raw response:"
+      );
+
       console.error(text);
 
-      console.error("Extracted JSON:");
+      console.error(
+        "Extracted JSON:"
+      );
+
       console.error(jsonText);
 
-      console.error("Parse error:");
+      console.error(
+        "Parse error:"
+      );
+
       console.error(parseError);
 
       return Response.json(
         {
           success: false,
-          error: "Gemini returned invalid career path JSON.",
+          error:
+            "OpenAI returned invalid career path JSON.",
         },
         {
           status: 500,
@@ -465,15 +633,20 @@ ${cleanMessage}
 
     if (
       !parsed ||
-      typeof parsed !== "object" ||
+      typeof parsed !==
+        "object" ||
       Array.isArray(parsed)
     ) {
-      console.error("Invalid Gemini root object:", parsed);
+      console.error(
+        "Invalid OpenAI root object:",
+        parsed
+      );
 
       return Response.json(
         {
           success: false,
-          error: "Invalid career path response object.",
+          error:
+            "Invalid career path response object.",
         },
         {
           status: 500,
@@ -485,19 +658,26 @@ ${cleanMessage}
     // VALIDATE CAREER PATH ARRAY
     // =======================================================
 
-    if (!Array.isArray(parsed.careerPathOptions)) {
+    if (
+      !Array.isArray(
+        parsed.careerPathOptions
+      )
+    ) {
       console.error(
         "careerPathOptions is missing or is not an array."
       );
 
-      console.error("Gemini object:");
+      console.error(
+        "OpenAI object:"
+      );
+
       console.error(parsed);
 
       return Response.json(
         {
           success: false,
           error:
-            "Gemini response does not contain careerPathOptions.",
+            "OpenAI response does not contain careerPathOptions.",
         },
         {
           status: 500,
@@ -509,26 +689,42 @@ ${cleanMessage}
     // NORMALIZE
     // =======================================================
 
-    const careerPathOptions = normalizeCareerPaths(
-      parsed.careerPathOptions
-    );
+    const careerPathOptions =
+      normalizeCareerPaths(
+        parsed.careerPathOptions
+      );
 
     console.log("");
-    console.log("Normalized career paths:");
-    console.log(careerPathOptions);
+    console.log(
+      "Normalized career paths:"
+    );
+
+    console.log(
+      careerPathOptions
+    );
 
     // =======================================================
     // REQUIRE AT LEAST 2
     // =======================================================
 
-    if (careerPathOptions.length < 2) {
+    if (
+      careerPathOptions.length < 2
+    ) {
       console.error("");
-      console.error("========================================");
-      console.error("NOT ENOUGH CAREER PATHS");
-      console.error("========================================");
+      console.error(
+        "========================================"
+      );
 
       console.error(
-        "Gemini returned:",
+        "NOT ENOUGH CAREER PATHS"
+      );
+
+      console.error(
+        "========================================"
+      );
+
+      console.error(
+        "OpenAI returned:",
         parsed.careerPathOptions
       );
 
@@ -536,7 +732,7 @@ ${cleanMessage}
         {
           success: false,
           error:
-            "Gemini returned fewer than 2 valid career paths.",
+            "OpenAI returned fewer than 2 valid career paths.",
         },
         {
           status: 500,
@@ -549,15 +745,26 @@ ${cleanMessage}
     // =======================================================
 
     console.log("");
-    console.log("========================================");
-    console.log("CAREER PATHS GENERATED SUCCESSFULLY");
-    console.log("========================================");
+    console.log(
+      "========================================"
+    );
 
-    console.log(careerPathOptions);
+    console.log(
+      "CAREER PATHS GENERATED SUCCESSFULLY"
+    );
+
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      careerPathOptions
+    );
 
     return Response.json(
       {
         success: true,
+
         careerPathOptions,
       },
       {
@@ -570,19 +777,44 @@ ${cleanMessage}
     // =======================================================
 
     console.error("");
-    console.error("========================================");
-    console.error("UNEXPECTED CAREER PATH ERROR");
-    console.error("========================================");
+    console.error(
+      "========================================"
+    );
 
-    console.error("Name:", error?.name);
-    console.error("Message:", error?.message);
-    console.error("Stack:", error?.stack);
-    console.error("Full error:", error);
+    console.error(
+      "UNEXPECTED CAREER PATH ERROR"
+    );
+
+    console.error(
+      "========================================"
+    );
+
+    console.error(
+      "Name:",
+      error?.name
+    );
+
+    console.error(
+      "Message:",
+      error?.message
+    );
+
+    console.error(
+      "Stack:",
+      error?.stack
+    );
+
+    console.error(
+      "Full error:",
+      error
+    );
 
     return Response.json(
       {
         success: false,
-        error: errorMessage(error),
+
+        error:
+          errorMessage(error),
       },
       {
         status: 500,

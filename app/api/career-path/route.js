@@ -1,26 +1,54 @@
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request) {
   try {
+    // ==========================================
+    // API KEY
+    // ==========================================
+
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY is missing");
+
+      return Response.json(
+        {
+          error: "OPENAI_API_KEY is not configured.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
     // ==========================================
     // GET REQUEST DATA
     // ==========================================
 
     const body = await request.json();
 
-    const message = body?.message;
-    const history = body?.history || [];
-    const aboutYou = body?.aboutYou || {};
+    const message =
+      typeof body?.message === "string"
+        ? body.message.trim()
+        : "";
+
+    const history = Array.isArray(body?.history)
+      ? body.history
+      : [];
+
+    const aboutYou =
+      body?.aboutYou &&
+      typeof body.aboutYou === "object"
+        ? body.aboutYou
+        : {};
 
     // ==========================================
     // BASIC VALIDATION
     // ==========================================
 
-    if (!message || !message.trim()) {
+    if (!message) {
       return Response.json(
         {
           error: "Message is required",
@@ -31,21 +59,8 @@ export async function POST(request) {
       );
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      console.error("GEMINI_API_KEY is missing");
-
-      return Response.json(
-        {
-          error: "GEMINI_API_KEY is not configured.",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
     // ==========================================
-    // GET USER PROFILE FROM FRONTEND STATE
+    // GET USER PROFILE
     // ==========================================
 
     const name = String(
@@ -116,15 +131,16 @@ export async function POST(request) {
       "which field",
     ];
 
-    const lowerMessage = message.toLowerCase();
+    const lowerMessage =
+      message.toLowerCase();
 
-    const isCareerQuestion = careerKeywords.some(
-      (keyword) =>
+    const isCareerQuestion =
+      careerKeywords.some((keyword) =>
         lowerMessage.includes(keyword)
-    );
+      );
 
     // ==========================================
-    // GEMINI PROFILE VALIDATION
+    // OPENAI PROFILE VALIDATION
     // ==========================================
 
     if (isCareerQuestion) {
@@ -299,11 +315,9 @@ DECISION
 ------------------------------------------
 
 If Interests OR Current Skills is missing or useless,
-return EXACTLY:
+return exactly:
 
 UK41Z_LAUNCH_PROFILE_INPUT
-
-Do not add anything before or after it.
 
 If both Interests AND Current Skills contain useful information,
 return ONLY this JSON:
@@ -328,22 +342,50 @@ UK41Z_LAUNCH_PROFILE_INPUT
 `;
 
       // ==========================================
-      // CALL GEMINI VALIDATOR
+      // CALL OPENAI VALIDATOR
       // ==========================================
 
       const validationResponse =
-        await ai.models.generateContent({
-          model: "gemini-3.6-flash",
-          contents: validationPrompt,
+        await openai.chat.completions.create({
+          model: "gpt-5.4-mini",
+
+          messages: [
+            {
+              role: "system",
+
+              content:
+                "You are a strict profile validator. Follow the user's output format exactly. Return only the requested JSON or secret command.",
+            },
+
+            {
+              role: "user",
+
+              content: validationPrompt,
+            },
+          ],
+
+          response_format: {
+            type: "text",
+          },
         });
 
       const validationText =
-        validationResponse.text
+        validationResponse?.choices?.[0]
+          ?.message?.content
           ?.trim()
-          .replace(/^```json\s*/i, "")
-          .replace(/^```\s*/i, "")
-          .replace(/\s*```$/i, "")
-          .trim() || "";
+          ?.replace(
+            /^```json\s*/i,
+            ""
+          )
+          ?.replace(
+            /^```\s*/i,
+            ""
+          )
+          ?.replace(
+            /\s*```$/i,
+            ""
+          )
+          ?.trim() || "";
 
       console.log(
         "Profile validation:",
@@ -369,15 +411,14 @@ UK41Z_LAUNCH_PROFILE_INPUT
       }
 
       // ==========================================
-      // VALIDATE GEMINI JSON
+      // VALIDATE OPENAI JSON
       // ==========================================
 
       let validation;
 
       try {
-        validation = JSON.parse(
-          validationText
-        );
+        validation =
+          JSON.parse(validationText);
       } catch (error) {
         console.error(
           "Validation JSON parsing failed:",
@@ -395,7 +436,8 @@ UK41Z_LAUNCH_PROFILE_INPUT
       // ==========================================
 
       if (
-        validation?.interestsUseful !== true ||
+        validation?.interestsUseful !==
+          true ||
         validation?.skillsUseful !== true
       ) {
         return Response.json({
@@ -413,11 +455,16 @@ UK41Z_LAUNCH_PROFILE_INPUT
       history
         .map((msg) => {
           const role =
-            msg.role === "user"
+            msg?.role === "user"
               ? "User"
               : "CareerAI";
 
-          return `${role}: ${msg.text}`;
+          const text =
+            typeof msg?.text === "string"
+              ? msg.text
+              : "";
+
+          return `${role}: ${text}`;
         })
         .join("\n");
 
@@ -543,21 +590,35 @@ ${message}
 `;
 
     // ==========================================
-    // MAIN GEMINI REQUEST
+    // MAIN OPENAI REQUEST
     // ==========================================
 
     console.log(
-      "Sending request to Gemini..."
+      "Sending request to OpenAI..."
     );
 
     const response =
-      await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
+      await openai.chat.completions.create({
+        model: "gpt-5.4-mini",
+
+        messages: [
+          {
+            role: "system",
+
+            content:
+              "You are CareerAI, a helpful, practical and concise career assistant.",
+          },
+
+          {
+            role: "user",
+
+            content: prompt,
+          },
+        ],
       });
 
     console.log(
-      "Gemini response received."
+      "OpenAI response received."
     );
 
     // ==========================================
@@ -565,7 +626,15 @@ ${message}
     // ==========================================
 
     let aiResponse =
-      response.text?.trim() || "";
+      response?.choices?.[0]
+        ?.message?.content
+        ?.trim() || "";
+
+    if (!aiResponse) {
+      throw new Error(
+        "OpenAI returned an empty response."
+      );
+    }
 
     // ==========================================
     // DETECT CAREER PATH REQUEST
@@ -631,14 +700,13 @@ ${message}
     return Response.json({
       response: aiResponse,
     });
-
   } catch (error) {
     // ==========================================
     // ERROR HANDLING
     // ==========================================
 
     console.error(
-      "========== GEMINI ERROR =========="
+      "========== OPENAI ERROR =========="
     );
 
     console.error(error);

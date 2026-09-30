@@ -16,43 +16,41 @@ export default function SkillGapPopup({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-5 backdrop-blur-sm ${
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm ${
         isClosing
           ? "animate-profile-backdrop-out"
           : "animate-profile-backdrop-in"
       }`}
     >
       <div
-        className={`w-full max-w-md rounded-2xl border border-zinc-800 bg-[#111114] p-6 shadow-2xl ${
-          isClosing
-            ? "animate-profile-popup-out"
-            : "animate-profile-popup-in"
+        className={`w-full max-w-sm rounded-xl border border-zinc-800 bg-[#111114] p-4 shadow-2xl ${
+          isClosing ? "animate-profile-popup-out" : "animate-profile-popup-in"
         }`}
       >
-        {/* HEADER */}
-        <div className="mb-6">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-[#18181b]">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+        {/* HEADER */}{" "}
+        <div className="mb-4">
+          {" "}
+          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-[#18181b]">
+            {" "}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              {" "}
               <path
                 d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z"
                 fill="white"
-              />
-            </svg>
+              />{" "}
+            </svg>{" "}
           </div>
-
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className="text-base font-semibold text-white">
             Analyze your skill gap
           </h2>
-
-       <p className="mt-1.5 text-sm leading-6 text-zinc-500">
-  Tell me where you want to go and what you know. I&apos;ll identify the
-  skills you need to reach your goal.
-</p>
+          <p className="mt-1 text-xs leading-5 text-zinc-500">
+            Tell me where you want to go and what you know. I&apos;ll identify
+            the skills you need to reach your goal.
+          </p>
         </div>
-
         {/* TARGET ROLE */}
-        <div className="mb-4">
-          <label className="mb-2 block text-xs font-medium text-zinc-400">
+        <div className="mb-3">
+          <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">
             Target career / job role
           </label>
 
@@ -65,13 +63,12 @@ export default function SkillGapPopup({
               }))
             }
             placeholder="e.g. AI/ML Engineer"
-            className="w-full rounded-xl border border-zinc-800 bg-[#0c0c0f] px-3.5 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-zinc-600"
+            className="w-full rounded-lg border border-zinc-800 bg-[#0c0c0f] px-3 py-2.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-zinc-600"
           />
         </div>
-
         {/* RESUME */}
-        <div className="mb-4">
-          <label className="mb-2 block text-xs font-medium text-zinc-400">
+        <div className="mb-3">
+          <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">
             Resume
             <span className="ml-1 text-zinc-600">
               (optional if you enter skills)
@@ -83,11 +80,11 @@ export default function SkillGapPopup({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700 bg-[#0c0c0f] px-4 py-4 text-sm text-zinc-400 transition hover:border-zinc-500 hover:bg-[#111114] hover:text-white"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 bg-[#0c0c0f] px-3 py-2.5 text-xs text-zinc-400 transition hover:border-zinc-500 hover:bg-[#111114] hover:text-white"
               >
                 <svg
-                  width="16"
-                  height="16"
+                  width="14"
+                  height="14"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -97,7 +94,6 @@ export default function SkillGapPopup({
                   <path d="M7 9l5-5 5 5" />
                   <path d="M5 20h14" />
                 </svg>
-
                 Upload your resume
               </button>
 
@@ -110,13 +106,13 @@ export default function SkillGapPopup({
               />
             </>
           ) : (
-            <div className="rounded-xl border border-zinc-800 bg-[#0c0c0f] p-3">
+            <div className="rounded-lg border border-zinc-800 bg-[#0c0c0f] p-2.5">
               <div className="flex items-center justify-between">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-[#18181b]">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-[#18181b]">
                     <svg
-                      width="16"
-                      height="16"
+                      width="14"
+                      height="14"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -128,11 +124,11 @@ export default function SkillGapPopup({
                   </div>
 
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-zinc-200">
+                    <p className="truncate text-xs font-medium text-zinc-200">
                       {skillGapResume.name}
                     </p>
 
-                    <p className="mt-0.5 text-[11px] text-zinc-500">
+                    <p className="mt-0.5 text-[10px] text-zinc-500">
                       {(skillGapResume.size / 1024 / 1024).toFixed(2)} MB · PDF
                     </p>
                   </div>
@@ -141,7 +137,7 @@ export default function SkillGapPopup({
                 <button
                   type="button"
                   onClick={onRemoveResume}
-                  className="text-xs text-zinc-500 transition hover:text-red-400"
+                  className="text-[11px] text-zinc-500 transition hover:text-red-400"
                 >
                   Remove
                 </button>
@@ -149,10 +145,9 @@ export default function SkillGapPopup({
             </div>
           )}
         </div>
-
         {/* CURRENT SKILLS */}
-        <div className="mb-4">
-          <label className="mb-2 block text-xs font-medium text-zinc-400">
+        <div className="mb-3">
+          <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">
             Current skills
           </label>
 
@@ -165,14 +160,13 @@ export default function SkillGapPopup({
               }))
             }
             placeholder="e.g. I know Python, basic ML and some React..."
-            rows={3}
-            className="w-full resize-none rounded-xl border border-zinc-800 bg-[#0c0c0f] px-3.5 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-zinc-600"
+            rows={2}
+            className="w-full resize-none rounded-lg border border-zinc-800 bg-[#0c0c0f] px-3 py-2.5 text-xs text-white outline-none transition placeholder:text-zinc-600 focus:border-zinc-600"
           />
         </div>
-
         {/* BACKGROUND */}
-        <div className="mb-5">
-          <label className="mb-2 block text-xs font-medium text-zinc-400">
+        <div className="mb-4">
+          <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">
             Background
             <span className="ml-1 text-zinc-600">(optional)</span>
           </label>
@@ -187,15 +181,14 @@ export default function SkillGapPopup({
             }
             placeholder="e.g. I'm a 3rd year computer science student..."
             rows={2}
-            className="w-full resize-none rounded-xl border border-zinc-800 bg-[#0c0c0f] px-3.5 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600"
+            className="w-full resize-none rounded-lg border border-zinc-800 bg-[#0c0c0f] px-3 py-2.5 text-xs text-white outline-none transition placeholder:text-zinc-600"
           />
         </div>
-
         {/* BUTTONS */}
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-sm font-medium text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2.5 text-xs font-medium text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
           >
             Cancel
           </button>
@@ -206,7 +199,7 @@ export default function SkillGapPopup({
               !skillGapData.targetRole.trim() ||
               (!skillGapResume && !skillGapData.currentSkills.trim())
             }
-            className="flex-1 rounded-xl bg-white px-4 py-3 text-sm font-medium text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-30"
+            className="flex-1 rounded-lg bg-white px-3 py-2.5 text-xs font-medium text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-30"
           >
             Analyze Skill Gap →
           </button>
@@ -215,4 +208,3 @@ export default function SkillGapPopup({
     </div>
   );
 }
-

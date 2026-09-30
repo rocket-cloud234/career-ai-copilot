@@ -14,8 +14,7 @@ export default function Main({
   openSkillGapPopup,
   openRoadmapPopup,
   sendMessage,
-  setTargetCareer,
-  handleTargetCareerChange,
+  onCareerPathSubmitted,
 
   // Career path state comes from parent
   careerPathOptions,
@@ -184,36 +183,82 @@ export default function Main({
   // SET TARGET CAREER
   // =========================================================
 
-  const submitCareerPath = () => {
-    if (!selectedCareerPath) return;
+const submitCareerPath = async () => {
+  if (!selectedCareerPath || isLoading) return;
 
-    const selectedOption = careerPathOptions.find(
-      (item) => item.id === selectedCareerPath
-    );
+  const selectedOption = careerPathOptions.find(
+    (item) => item.id === selectedCareerPath
+  );
 
-    if (!selectedOption) return;
+  if (!selectedOption) return;
 
-    // =======================================================
-    // STORE BOTH CAREER ID AND CAREER NAME
-    // =======================================================
+  try {
+    // ==========================================
+    // SAVE TARGET CAREER
+    // ==========================================
 
-    setTargetCareer({
-      id: selectedOption.id,
-      name: selectedOption.title,
+    const response = await fetch("/api/set-career-path", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        targetCareer: selectedOption.title,
+      }),
     });
 
-    // Keep parent target-career handling
-    handleTargetCareerChange(selectedOption.title);
+    const data = await response.json();
 
-    // =======================================================
-    // CHANGE UI
-    // =======================================================
+    if (!response.ok || !data.success) {
+      throw new Error(
+        data?.error || "Failed to save target career."
+      );
+    }
+
+    // ==========================================
+    // GET VALUES RETURNED FROM API
+    // ==========================================
+
+    const savedCareer =
+      data.targetCareer ||
+      selectedOption.title ||
+      "";
+
+    const savedCareerId =
+      data.targetCareerId ||
+      selectedOption.id ||
+      "";
+
+    console.log("Target career saved:", savedCareer);
+    console.log("Target career ID:", savedCareerId);
+
+    // ==========================================
+    // IMPORTANT:
+    // UPDATE PARENT IMMEDIATELY
+    // ==========================================
+
+    if (onCareerPathSubmitted) {
+      await onCareerPathSubmitted({
+        targetCareer: savedCareer,
+        targetCareerId: savedCareerId,
+      });
+    }
+
+    // ==========================================
+    // UPDATE CHAT UI
+    // ==========================================
 
     setCareerPathSubmitted(true);
-
-    // Clear current selection
     setSelectedCareerPath(null);
-  };
+
+  } catch (error) {
+    console.error(
+      "Failed to set target career:",
+      error
+    );
+  }
+};
 
   // =========================================================
   // RETURN

@@ -1,7 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
+import clientPromise from "../../lib/mongodb";
+import { getAuthUser } from "../../lib/auth";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request) {
@@ -10,13 +12,48 @@ export async function POST(request) {
     // API KEY
     // ==========================================
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       return Response.json(
         {
-          error: "GEMINI_API_KEY is not configured.",
+          success: false,
+          error: "OPENAI_API_KEY is not configured.",
         },
         {
           status: 500,
+        }
+      );
+    }
+
+    // ==========================================
+    // AUTHENTICATION
+    // ==========================================
+
+    const authUser = await getAuthUser(request);
+
+    if (!authUser) {
+      return Response.json(
+        {
+          success: false,
+          error: "Unauthorized. Please log in.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    const userId = String(
+      authUser.userId || ""
+    ).trim();
+
+    if (!userId) {
+      return Response.json(
+        {
+          success: false,
+          error: "Invalid authenticated user.",
+        },
+        {
+          status: 401,
         }
       );
     }
@@ -27,72 +64,176 @@ export async function POST(request) {
 
     const body = await request.json();
 
-    const message = body?.message || "";
+    const message =
+      typeof body?.message === "string"
+        ? body.message.trim()
+        : "";
 
     const history = Array.isArray(body?.history)
       ? body.history
       : [];
 
-    const aboutYou = body?.aboutYou || {};
+    // ==========================================
+    // MONGODB
+    // ==========================================
+
+    const client = await clientPromise;
+
+    const db = client.db(
+      process.env.MONGODB_DB || "careerai"
+    );
+
+    const users = db.collection("users");
+
+    const roadmapsCollection =
+      db.collection("roadmaps");
 
     // ==========================================
-    // USER DATA
+    // GET AUTHENTICATED USER
+    // ==========================================
+
+    const user = await users.findOne({
+      userId,
+    });
+
+    if (!user) {
+      return Response.json(
+        {
+          success: false,
+          error: "User account not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    // ==========================================
+    // USER PROFILE
     // ==========================================
 
     const name = String(
-      aboutYou.name || ""
+      user.name || ""
     ).trim();
 
-    const age = aboutYou.age || "";
-
     const interests = String(
-      aboutYou.interests || ""
+      user.interests || ""
     ).trim();
 
     const currentSkills = String(
-      aboutYou.currentSkills || ""
+      user.currentSkills || ""
     ).trim();
 
     const background = String(
-      aboutYou.background || ""
+      user.background || ""
     ).trim();
+
+    // ==========================================
+    // CALCULATE AGE FROM DOB
+    // ==========================================
+
+    let age = "";
+
+    if (user.dob) {
+      const birthDate =
+        new Date(user.dob);
+
+      if (
+        !Number.isNaN(
+          birthDate.getTime()
+        )
+      ) {
+        const today = new Date();
+
+        let calculatedAge =
+          today.getFullYear() -
+          birthDate.getFullYear();
+
+        const monthDifference =
+          today.getMonth() -
+          birthDate.getMonth();
+
+        if (
+          monthDifference < 0 ||
+          (
+            monthDifference === 0 &&
+            today.getDate() <
+              birthDate.getDate()
+          )
+        ) {
+          calculatedAge--;
+        }
+
+        if (calculatedAge >= 0) {
+          age = calculatedAge;
+        }
+      }
+    }
 
     // ==========================================
     // TARGET CAREER
     // ==========================================
+    //
+    // The target career is taken from the
+    // authenticated user's MongoDB profile.
+    //
+    // The frontend should NOT be trusted
+    // to provide the user's identity.
+    //
+    // ==========================================
 
     const targetCareer = String(
-      aboutYou.targetCareer || ""
+      user.targetCareer || ""
     ).trim();
 
     const targetCareerId = String(
-      aboutYou.targetCareerId || ""
+      user.targetCareerId || ""
     ).trim();
 
     // ==========================================
     // TARGET CAREER CHECK
     // ==========================================
 
-    if (!targetCareer || !targetCareerId) {
-      return Response.json({
-        response: "UK41Z_LAUNCH_TARGET_CAREER",
-      });
+    if (
+      !targetCareer ||
+      !targetCareerId
+    ) {
+      return Response.json(
+        {
+          success: false,
+
+          response:
+            "UK41Z_LAUNCH_TARGET_CAREER",
+
+          error:
+            "Please select a target career before generating a roadmap.",
+        },
+        {
+          status: 400,
+        }
+      );
     }
 
     // ==========================================
     // HISTORY
     // ==========================================
 
-    const previousConversation = history
-      .map((msg) => {
-        const role =
-          msg?.role === "user"
-            ? "User"
-            : "CareerAI";
+    const previousConversation =
+      history
+        .map((msg) => {
+          const role =
+            msg?.role === "user"
+              ? "User"
+              : "CareerAI";
 
-        return `${role}: ${msg?.text || ""}`;
-      })
-      .join("\n");
+          const text =
+            typeof msg?.text === "string"
+              ? msg.text
+              : "";
+
+          return `${role}: ${text}`;
+        })
+        .join("\n");
 
     // ==========================================
     // ROADMAP PROMPT
@@ -299,26 +440,6 @@ Topics should be:
 
 Avoid duplicate topics.
 
-BAD:
-
-Stage: JavaScript Variables
-Stage: JavaScript Functions
-Stage: JavaScript Arrays
-
-GOOD:
-
-Stage: JavaScript
-
-Topics:
-
-Variables
-Functions
-Arrays
-Objects
-DOM
-Events
-Async JavaScript
-
 ========================================
 ROADMAP SIZE
 ========================================
@@ -442,7 +563,16 @@ Return ONLY the JSON object.
     // ==========================================
 
     console.log(
-      "Generating roadmap for:",
+      "Generating roadmap with OpenAI"
+    );
+
+    console.log(
+      "User ID:",
+      userId
+    );
+
+    console.log(
+      "Target career:",
       targetCareer
     );
 
@@ -451,20 +581,42 @@ Return ONLY the JSON object.
       targetCareerId
     );
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: prompt,
-    });
+    const response =
+      await openai.chat.completions.create({
+        model: "gpt-5.4-mini",
+
+        messages: [
+          {
+            role: "system",
+
+            content:
+              "You are CareerAI. Return only the requested JSON object. Never return Markdown or explanatory text.",
+          },
+
+          {
+            role: "user",
+
+            content: prompt,
+          },
+        ],
+
+        response_format: {
+          type: "json_object",
+        },
+      });
 
     // ==========================================
     // GET AI RESPONSE
     // ==========================================
 
-    let text = response.text?.trim() || "";
+    let text =
+      response?.choices?.[0]
+        ?.message?.content
+        ?.trim() || "";
 
     if (!text) {
       throw new Error(
-        "Gemini returned an empty roadmap."
+        "OpenAI returned an empty roadmap."
       );
     }
 
@@ -473,9 +625,18 @@ Return ONLY the JSON object.
     // ==========================================
 
     text = text
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/\s*```$/i, "")
+      .replace(
+        /^```json\s*/i,
+        ""
+      )
+      .replace(
+        /^```\s*/i,
+        ""
+      )
+      .replace(
+        /\s*```$/i,
+        ""
+      )
       .trim();
 
     // ==========================================
@@ -488,15 +649,18 @@ Return ONLY the JSON object.
       roadmap = JSON.parse(text);
     } catch (error) {
       console.error(
-        "Gemini returned invalid JSON:"
+        "OpenAI returned invalid JSON:"
       );
 
       console.error(text);
 
       return Response.json(
         {
+          success: false,
+
           error:
             "The AI generated an invalid roadmap format. Please try again.",
+
           rawResponse: text,
         },
         {
@@ -506,7 +670,7 @@ Return ONLY the JSON object.
     }
 
     // ==========================================
-    // VALIDATE ROADMAP
+    // VALIDATE ROADMAP OBJECT
     // ==========================================
 
     if (
@@ -519,7 +683,11 @@ Return ONLY the JSON object.
       );
     }
 
-    if (!Array.isArray(roadmap.stages)) {
+    if (
+      !Array.isArray(
+        roadmap.stages
+      )
+    ) {
       throw new Error(
         "Generated roadmap does not contain valid stages."
       );
@@ -529,71 +697,241 @@ Return ONLY the JSON object.
     // NORMALIZE ROADMAP
     // ==========================================
 
-    roadmap.id = targetCareerId;
+    roadmap.id =
+      targetCareerId;
 
     roadmap.topic =
       `${targetCareer} Roadmap`;
 
-    // Always false for newly generated roadmaps
     roadmap.completed = false;
 
-    roadmap.stages = roadmap.stages
-      .map((stage, stageIndex) => ({
-        id:
-          typeof stage?.id === "number"
-            ? stage.id
-            : stageIndex + 1,
+    roadmap.stages =
+      roadmap.stages
+        .map(
+          (
+            stage,
+            stageIndex
+          ) => ({
+            id:
+              typeof stage?.id ===
+              "number"
+                ? stage.id
+                : stageIndex + 1,
 
-        title: String(
-          stage?.title ||
-            `Stage ${stageIndex + 1}`
-        ).trim(),
+            title: String(
+              stage?.title ||
+                `Stage ${
+                  stageIndex + 1
+                }`
+            ).trim(),
 
-        completed: false,
+            completed: false,
 
-        topics: Array.isArray(stage?.topics)
-          ? stage.topics
-              .map((topic) => ({
-                name: String(
-                  topic?.name || ""
-                ).trim(),
-
-                completed: false,
-              }))
-              .filter(
-                (topic) => topic.name
+            topics:
+              Array.isArray(
+                stage?.topics
               )
-          : [],
-      }))
-      .filter(
-        (stage) =>
-          stage.title &&
-          stage.topics.length > 0
-      );
+                ? stage.topics
+                    .map(
+                      (topic) => ({
+                        name: String(
+                          topic?.name ||
+                            ""
+                        ).trim(),
+
+                        completed:
+                          false,
+                      })
+                    )
+                    .filter(
+                      (topic) =>
+                        topic.name
+                          .length > 0
+                    )
+                : [],
+          })
+        )
+        .filter(
+          (stage) =>
+            stage.title &&
+            stage.topics.length >
+              0
+        );
 
     // ==========================================
     // FINAL VALIDATION
     // ==========================================
 
-    if (roadmap.stages.length === 0) {
+    if (
+      roadmap.stages.length ===
+      0
+    ) {
       throw new Error(
         "Generated roadmap contains no valid stages."
       );
     }
 
     // ==========================================
-    // RETURN JSON
+    // SAVE ROADMAP
     // ==========================================
 
-    return Response.json({
-      roadmap,
+    const now = new Date();
 
-      targetCareer: {
-        id: targetCareerId,
-        name: targetCareer,
+    // ==========================================
+    // IMPORTANT
+    // ==========================================
+    //
+    // userId + roadmap.id identify the roadmap.
+    //
+    // Example:
+    //
+    // User A + frontend
+    //
+    // User B + frontend
+    //
+    // These are TWO different documents.
+    //
+    // ==========================================
+
+    const roadmapDocument = {
+      userId,
+
+      id: roadmap.id,
+
+      roadmapId:
+        roadmap.id,
+
+      topic:
+        roadmap.topic,
+
+      targetCareer,
+
+      targetCareerId,
+
+      completed:
+        roadmap.completed,
+
+      stages:
+        roadmap.stages,
+
+      updatedAt:
+        now,
+    };
+
+    // ==========================================
+    // UPSERT ROADMAP
+    // ==========================================
+
+    await roadmapsCollection.updateOne(
+      {
+        userId,
+
+        id: roadmap.id,
       },
-    });
+
+      {
+        // --------------------------------------
+        // Updated every generation
+        // --------------------------------------
+
+        $set: {
+          ...roadmapDocument,
+        },
+
+        // --------------------------------------
+        // Created only once
+        // --------------------------------------
+
+        $setOnInsert: {
+          createdAt: now,
+        },
+      },
+
+      {
+        upsert: true,
+      }
+    );
+
+    console.log(
+      "Roadmap saved successfully."
+    );
+
+    console.log(
+      "User:",
+      userId
+    );
+
+    console.log(
+      "Roadmap:",
+      roadmap.id
+    );
+
+    // ==========================================
+    // GET SAVED ROADMAP
+    // ==========================================
+
+    const savedRoadmap =
+      await roadmapsCollection.findOne(
+        {
+          userId,
+
+          id: roadmap.id,
+        }
+      );
+
+    if (!savedRoadmap) {
+      throw new Error(
+        "Roadmap was generated but could not be retrieved from MongoDB."
+      );
+    }
+
+    // ==========================================
+    // RETURN ROADMAP
+    // ==========================================
+
+    return Response.json(
+      {
+        success: true,
+
+        message:
+          "Roadmap generated and saved successfully.",
+
+        roadmap: {
+          ...savedRoadmap,
+
+          _id:
+            savedRoadmap._id
+              ? savedRoadmap._id.toString()
+              : undefined,
+        },
+
+        user: {
+          userId,
+
+          name:
+            user.name || "",
+
+          email:
+            user.email || "",
+        },
+
+        targetCareer: {
+          id:
+            targetCareerId,
+
+          name:
+            targetCareer,
+        },
+      },
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
+    // ==========================================
+    // ERROR
+    // ==========================================
+
     console.error(
       "========== ROADMAP ERROR =========="
     );
@@ -606,6 +944,8 @@ Return ONLY the JSON object.
 
     return Response.json(
       {
+        success: false,
+
         error:
           error?.message ||
           "Failed to generate roadmap.",
@@ -616,3 +956,4 @@ Return ONLY the JSON object.
     );
   }
 }
+

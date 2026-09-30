@@ -1,14 +1,127 @@
 "use client";
 
+import { useState } from "react";
+
 export default function MainSidebar({
   roadmaps = [],
   selectedRoadmapId = null,
   onRoadmapSelect,
   onNewChat,
-  targetCareer,
   onOpenProfile,
-  profile,
+  onLogout,
+  profile = {},
 }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+
+// =========================================================
+// LOGOUT
+// =========================================================
+const handleLogout = async () => {
+  if (loggingOut) return;
+
+  setLoggingOut(true);
+  setShowMenu(false);
+
+  try {
+    const response = await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    const contentType =
+      response.headers.get("content-type") || "";
+
+    if (!contentType.includes("application/json")) {
+      const text = await response.text();
+
+      console.error(
+        "Logout API returned non-JSON response:",
+        text
+      );
+
+      throw new Error(
+        `Logout failed. Server returned ${response.status}.`
+      );
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message || "Logout failed."
+      );
+    }
+
+    if (!data?.success) {
+      throw new Error(
+        data?.message || "Logout failed."
+      );
+    }
+
+    console.log(
+      data?.message || "Logged out successfully."
+    );
+
+    // ---------------------------------------------------------
+    // Logout successful
+    // ---------------------------------------------------------
+    if (typeof onLogout === "function") {
+      onLogout();
+    }
+
+    // Clear the current page and launch login page
+    window.location.replace("/login");
+
+  } catch (error) {
+    console.error("Logout error:", error);
+
+    // Allow logout to be attempted again
+    setLoggingOut(false);
+  }
+};
+
+
+
+  // =========================================================
+  // ROADMAP SELECT
+  // =========================================================
+  const handleRoadmapSelect = (roadmapId) => {
+    if (typeof onRoadmapSelect === "function") {
+      onRoadmapSelect(roadmapId);
+    }
+  };
+
+  // =========================================================
+  // PROFILE INITIALS
+  // =========================================================
+  const getProfileInitials = () => {
+    if (!profile?.name) {
+      return "U";
+    }
+
+    return profile.name
+      .trim()
+      .split(/\s+/)
+      .map((word) => word[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  };
+
+  // =========================================================
+  // SINGLE PROFILE INITIAL
+  // =========================================================
+  const getProfileInitial = () => {
+    if (!profile?.name) {
+      return "U";
+    }
+
+    return profile.name.trim().charAt(0).toUpperCase();
+  };
+
   return (
     <aside className="flex w-[270px] shrink-0 flex-col border-r border-zinc-800/70 bg-[#09090a]">
       {/* =========================================================
@@ -16,6 +129,7 @@ export default function MainSidebar({
       ========================================================= */}
       <div className="flex h-[64px] items-center justify-between border-b border-zinc-800/60 px-4">
         <div className="flex items-center gap-3">
+          {/* Logo */}
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white">
             <svg
               viewBox="0 0 24 24"
@@ -26,6 +140,7 @@ export default function MainSidebar({
             </svg>
           </div>
 
+          {/* Brand */}
           <div>
             <p className="text-sm font-semibold tracking-tight text-white">
               CareerAI
@@ -36,15 +151,12 @@ export default function MainSidebar({
             </p>
           </div>
         </div>
-
-      
       </div>
 
       {/* =========================================================
           SIDEBAR CONTENT
       ========================================================= */}
       <div className="sidebar-scrollbar flex-1 overflow-y-auto px-3 py-4">
-
         {/* =======================================================
             NEW CHAT
         ======================================================= */}
@@ -54,10 +166,12 @@ export default function MainSidebar({
           className="group mb-6 flex w-full items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/70 px-3.5 py-3 text-left transition-all hover:border-zinc-700 hover:bg-zinc-800"
         >
           <div className="flex items-center gap-3">
+            {/* Plus */}
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 text-lg text-zinc-300 transition group-hover:bg-zinc-700">
               +
             </div>
 
+            {/* Text */}
             <div>
               <p className="text-sm font-medium text-zinc-200">
                 New chat
@@ -69,6 +183,7 @@ export default function MainSidebar({
             </div>
           </div>
 
+          {/* Shortcut */}
           <span className="rounded-md border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">
             Ctrl K
           </span>
@@ -82,12 +197,11 @@ export default function MainSidebar({
             <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-600">
               Your Roadmaps
             </p>
-
-           
           </div>
 
           <div className="space-y-1">
             {roadmaps.length === 0 ? (
+              /* Empty state */
               <div className="rounded-xl border border-dashed border-zinc-800 px-3 py-4 text-center">
                 <p className="text-xs text-zinc-600">
                   No roadmaps yet
@@ -103,7 +217,7 @@ export default function MainSidebar({
                     key={`roadmap-${roadmap.id}`}
                     type="button"
                     onClick={() =>
-                      onRoadmapSelect?.(roadmap.id)
+                      handleRoadmapSelect(roadmap.id)
                     }
                     className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
                       isActive
@@ -141,8 +255,8 @@ export default function MainSidebar({
                             roadmap.completed
                               ? "bg-emerald-400"
                               : isActive
-                              ? "bg-emerald-400"
-                              : "bg-zinc-700"
+                                ? "bg-emerald-400"
+                                : "bg-zinc-700"
                           }`}
                         />
 
@@ -150,8 +264,8 @@ export default function MainSidebar({
                           {roadmap.completed
                             ? "Completed"
                             : isActive
-                            ? "In progress"
-                            : "Not started"}
+                              ? "In progress"
+                              : "Not started"}
                         </span>
                       </div>
                     </div>
@@ -188,7 +302,7 @@ export default function MainSidebar({
           >
             {/* Avatar */}
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 text-xs font-semibold text-zinc-200 ring-1 ring-zinc-700">
-              VS
+              {getProfileInitials()}
             </div>
 
             {/* Profile Information */}
@@ -231,6 +345,7 @@ export default function MainSidebar({
               </p>
             </div>
 
+            {/* Arrow */}
             <div className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-zinc-500 transition group-hover:text-zinc-300">
               →
             </div>
@@ -259,28 +374,79 @@ export default function MainSidebar({
           SIDEBAR FOOTER
       ========================================================= */}
       <div className="border-t border-zinc-800/60 p-3">
-        <div className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition hover:bg-zinc-900">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-300">
-            V
+        <div className="relative">
+          {/* =====================================================
+              USER ROW
+          ===================================================== */}
+          <div className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition hover:bg-zinc-900">
+            {/* Avatar */}
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-300">
+              {getProfileInitial()}
+            </div>
+
+            {/* User Information */}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-zinc-300">
+                {profile.name || "User"}
+              </p>
+
+              <p className="text-[11px] text-zinc-600">
+                CareerAI user
+              </p>
+            </div>
+
+            {/* More Options */}
+            <button
+              type="button"
+              aria-label="More options"
+              aria-expanded={showMenu}
+              onClick={() =>
+                setShowMenu((previous) => !previous)
+              }
+              disabled={loggingOut}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="text-sm leading-none">
+                •••
+              </span>
+            </button>
           </div>
 
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-zinc-300">
-              {profile.name || ""}
-            </p>
+          {/* =====================================================
+              LOGOUT POPUP
+          ===================================================== */}
+          {showMenu && (
+            <div className="absolute bottom-12 right-0 z-50 w-[150px] overflow-hidden rounded-xl border border-zinc-800 bg-[#111113] p-1 shadow-2xl shadow-black/50">
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-zinc-400 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {/* Logout Icon */}
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M10 17l5-5-5-5" />
+                  <path d="M15 12H3" />
+                  <path d="M21 19V5a2 2 0 0 0-2-2h-6" />
+                </svg>
 
-            <p className="text-[11px] text-zinc-600">
-              CareerAI user
-            </p>
-          </div>
-
-          <button
-            type="button"
-            aria-label="More options"
-            className="rounded-lg px-1 text-zinc-600 transition hover:bg-zinc-800 hover:text-white"
-          >
-            •••
-          </button>
+                {/* Logout Text */}
+                <span>
+                  {loggingOut
+                    ? "Logging out..."
+                    : "Logout"}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </aside>
