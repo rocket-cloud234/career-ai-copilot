@@ -5,7 +5,7 @@ const secret = new TextEncoder().encode(
   process.env.AUTH_SECRET
 );
 
-export async function middleware(request) {
+export async function proxy(request) {
   const token = request.cookies.get("auth_token")?.value;
 
   // No login cookie

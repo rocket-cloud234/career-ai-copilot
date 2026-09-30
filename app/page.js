@@ -1610,7 +1610,7 @@ export default function Home() {
       id: crypto.randomUUID(),
 
       role: "user",
-
+    selectedRoadmapId: targetCareerId,
       text: messageText,
     };
 
@@ -1632,7 +1632,7 @@ export default function Home() {
 
         body: JSON.stringify({
           message: messageText,
-
+    selectedRoadmapId: targetCareerId,
           history: previousMessages.map((msg) => ({
             role: msg.role,
 

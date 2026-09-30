@@ -7,8 +7,8 @@ export default function RoadmapSidebar({
   selectedRoadmapId = null,
   onRoadmapsChange,
   onTopicSelect,
-   selectedRoadmap,
-   profile
+  selectedRoadmap,
+  profile
 }) {
   const [openStage, setOpenStage] = useState(null);
 
@@ -16,16 +16,11 @@ export default function RoadmapSidebar({
   // DEFAULT ROADMAP ID FOR NOW
   // ==========================================
 
-  
-const targetCareerId = selectedRoadmap?.targetCareerId || null;
+  const targetCareerId = selectedRoadmap?.targetCareerId || null;
 
-console.log("Target Career ID:", targetCareerId);
+  console.log("Target Career ID:", targetCareerId);
 
-
-
-  const DEFAULT_ROADMAP_ID =
-   targetCareerId;
-
+  const DEFAULT_ROADMAP_ID = targetCareerId;
 
   // ==========================================
   // FIND SELECTED ROADMAP
@@ -34,7 +29,6 @@ console.log("Target Career ID:", targetCareerId);
   const roadmap = roadmaps.find(
     (item) => item.id === selectedRoadmapId
   );
-
 
   // ==========================================
   // TOGGLE TOPIC COMPLETION
@@ -286,15 +280,26 @@ console.log("Target Career ID:", targetCareerId);
   };
 
   // ==========================================
-  // SEND TOPIC AS MESSAGE
+  // SEND TOPIC AS MESSAGE + AUTO COMPLETE
   // ==========================================
 
-  const handleTopicClick = (
-    topicName
+  const handleTopicClick = async (
+    stageId,
+    topic
   ) => {
-    if (!topicName) return;
+    if (!topic?.name) return;
 
-    onTopicSelect?.(topicName);
+    // Automatically mark the topic
+    // as completed when clicked
+    if (!topic.completed) {
+      await toggleTopic(
+        stageId,
+        topic.name
+      );
+    }
+
+    // Send/open the topic for learning
+    onTopicSelect?.(topic.name);
   };
 
   // ==========================================
@@ -714,7 +719,8 @@ console.log("Target Career ID:", targetCareerId);
                               type="button"
                               onClick={() =>
                                 handleTopicClick(
-                                  topic.name
+                                  stage.id,
+                                  topic
                                 )
                               }
                               className={`min-w-0 flex-1 cursor-pointer text-left text-[11px] leading-tight transition-colors hover:text-white ${
@@ -722,7 +728,7 @@ console.log("Target Career ID:", targetCareerId);
                                   ? "text-zinc-600 line-through hover:text-zinc-400"
                                   : "text-zinc-400 group-hover:text-zinc-200"
                               }`}
-                              title={`Ask about ${topic.name}`}
+                              title={`Learn ${topic.name}`}
                             >
                               {topic.name}
                             </button>
@@ -740,8 +746,8 @@ console.log("Target Career ID:", targetCareerId);
           })}
 
         </div>
+
       </div>
     </aside>
   );
 }
-

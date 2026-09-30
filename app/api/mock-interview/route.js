@@ -203,18 +203,7 @@ export async function POST(request) {
         ""
     ).trim();
 
-    // ==========================================
-    // DEBUG ROADMAP
-    // ==========================================
-    //
-    // FOR DEBUGGING ONLY
-    //
-    // The roadmap ID is intentionally hardcoded.
-    //
-    // Later, replace this with the user's
-    // selected roadmap ID from MongoDB.
-    //
-    // ==========================================
+    
 const selectedRoadmapId = String(
   body?.selectedRoadmapId || ""
 ).trim();
